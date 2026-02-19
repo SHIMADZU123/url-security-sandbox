@@ -1,6 +1,5 @@
 import streamlit as st
 import asyncio
-import os
 import base64
 import requests
 from playwright.async_api import async_playwright
@@ -21,12 +20,13 @@ def get_vt_report(url):
     except Exception:
         return 0
 
-# --- ANALYSIS ENGINE ---
+# --- THE SANDBOX ENGINE ---
 async def analyze_link(url):
     results = {"score": 100, "flags": [], "title": "Unknown", "final_url": url}
     
-    # Static Logic
-    if any(word in url.lower() for word in ['login', 'bank', 'verify', 'secure']):
+    # Simple logic for humans
+    suspicious_keywords = ['login', 'verify', 'bank', 'secure', 'update', 'account']
+    if any(word in url.lower() for word in suspicious_keywords):
         results["score"] -= 20
         results["flags"].append("⚠️ **Suspicious Name:** Uses words meant to trick you.")
 
@@ -40,7 +40,7 @@ async def analyze_link(url):
         results["flags"].append(f"🚨 **Known Threat:** Reported as dangerous by security vendors.")
 
     async with async_playwright() as p:
-        # NOTE: Browser must be pre-installed via packages.txt/setup.sh
+        # Launching the pre-installed browser
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
@@ -55,21 +55,26 @@ async def analyze_link(url):
             await browser.close()
             return False, str(e)
 
-# --- UI ---
+# --- USER INTERFACE ---
 st.set_page_config(page_title="SafeLink Scanner", page_icon="🛡️")
 st.title("🛡️ Is This Link Safe?")
+st.write("Checking links in a secure sandbox...")
 
 target_url = st.text_input("Paste link here:", "https://")
 
 if st.button("Check Safety"):
-    with st.spinner("Opening secure sandbox..."):
-        success, data = asyncio.run(analyze_link(target_url))
-        if success:
-            score = max(0, data["score"])
-            if score >= 80: st.success(f"### Score: {score}% — Safe ✅")
-            elif score >= 50: st.warning(f"### Score: {score}% — Caution ⚠️")
-            else: st.error(f"### Score: {score}% — DANGER 🛑")
-            for flag in data["flags"]: st.info(flag)
-            st.image("evidence.png")
-        else:
-            st.error(f"Error: {data}")
+    if not target_url.startswith("http"):
+        st.error("Please enter a full link (http/https)")
+    else:
+        with st.spinner("Opening secure sandbox..."):
+            success, data = asyncio.run(analyze_link(target_url))
+            if success:
+                score = max(0, data["score"])
+                if score >= 80: st.success(f"### Score: {score}% — Safe ✅")
+                elif score >= 50: st.warning(f"### Score: {score}% — Caution ⚠️")
+                else: st.error(f"### Score: {score}% — DANGER 🛑")
+                
+                for flag in data["flags"]: st.info(flag)
+                st.image("evidence.png", caption="Sandbox Screenshot")
+            else:
+                st.error(f"Sandbox Error: {data}")
