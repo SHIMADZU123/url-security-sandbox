@@ -5,7 +5,7 @@ import base64
 import requests
 from playwright.async_api import async_playwright
 
-# 1. VIRUSTOTAL CHECK
+# --- VIRUSTOTAL INTEGRATION ---
 def get_vt_report(url):
     try:
         if "VT_API_KEY" not in st.secrets:
@@ -21,26 +21,27 @@ def get_vt_report(url):
     except Exception:
         return 0
 
-# 2. ANALYSIS ENGINE
+# --- THE SANDBOX ENGINE ---
 async def analyze_link(url):
     results = {"score": 100, "flags": [], "title": "Unknown", "final_url": url}
     
-    # Simplified Warnings
-    suspicious_keywords = ['login', 'verify', 'bank', 'secure', 'update', 'account', 'signin']
+    # Simple Logic
+    suspicious_keywords = ['login', 'verify', 'bank', 'secure', 'update', 'account']
     if any(word in url.lower() for word in suspicious_keywords):
         results["score"] -= 20
-        results["flags"].append("⚠️ **Suspicious Name:** This link uses words that try to trick you.")
+        results["flags"].append("⚠️ **Suspicious Name:** Uses words meant to trick you.")
 
     if not url.startswith("https://"):
         results["score"] -= 30
-        results["flags"].append("🔒 **No Security Lock:** This site is not private.")
+        results["flags"].append("🔒 **No Security:** This site is not private.")
 
     vt_malicious = get_vt_report(url)
     if vt_malicious and vt_malicious > 0:
         results["score"] -= (vt_malicious * 10)
-        results["flags"].append(f"🚨 **Known Danger:** {vt_malicious} systems reported this as bad.")
+        results["flags"].append(f"🚨 **Known Threat:** {vt_malicious} security systems say this is DANGEROUS.")
 
     async with async_playwright() as p:
+        # We assume the browser is ALREADY installed by setup.sh
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
@@ -53,15 +54,17 @@ async def analyze_link(url):
             return True, results
         except Exception as e:
             await browser.close()
-            return False, "This website failed to open."
+            return False, str(e)
 
-# 3. UI
+# --- THE INTERFACE ---
 st.set_page_config(page_title="SafeLink Scanner", page_icon="🛡️")
 st.title("🛡️ Is This Link Safe?")
-target_url = st.text_input("Paste the link here:", "https://")
+st.write("We'll check it in a secure sandbox so you don't have to.")
 
-if st.button("Check Safety Now"):
-    with st.spinner("Analyzing site..."):
+target_url = st.text_input("Paste link here:", "https://")
+
+if st.button("Analyze Link"):
+    with st.spinner("Checking safety..."):
         success, data = asyncio.run(analyze_link(target_url))
         if success:
             score = max(0, data["score"])
@@ -70,6 +73,6 @@ if st.button("Check Safety Now"):
             else: st.error(f"### Score: {score}% — DANGER 🛑")
             
             for flag in data["flags"]: st.info(flag)
-            st.image("evidence.png")
+            st.image("evidence.png", caption="Sandbox View")
         else:
-            st.error(data)
+            st.error(f"Error: {data}")
