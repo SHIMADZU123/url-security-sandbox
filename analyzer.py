@@ -25,9 +25,8 @@ def get_vt_report(url):
 async def analyze_link(url):
     results = {"score": 100, "flags": [], "title": "Unknown", "final_url": url}
     
-    # Static Analysis
-    suspicious_keywords = ['login', 'verify', 'bank', 'secure', 'update', 'account']
-    if any(word in url.lower() for word in suspicious_keywords):
+    # Static Logic
+    if any(word in url.lower() for word in ['login', 'bank', 'verify', 'secure']):
         results["score"] -= 20
         results["flags"].append("⚠️ **Suspicious Name:** Uses words meant to trick you.")
 
@@ -38,10 +37,10 @@ async def analyze_link(url):
     vt_malicious = get_vt_report(url)
     if vt_malicious and vt_malicious > 0:
         results["score"] -= (vt_malicious * 10)
-        results["flags"].append(f"🚨 **Known Threat:** {vt_malicious} security vendors say this is DANGEROUS.")
+        results["flags"].append(f"🚨 **Known Threat:** Reported as dangerous by security vendors.")
 
     async with async_playwright() as p:
-        # Browser is launched normally
+        # NOTE: Browser must be pre-installed via packages.txt/setup.sh
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
@@ -56,15 +55,14 @@ async def analyze_link(url):
             await browser.close()
             return False, str(e)
 
-# --- USER INTERFACE ---
+# --- UI ---
 st.set_page_config(page_title="SafeLink Scanner", page_icon="🛡️")
 st.title("🛡️ Is This Link Safe?")
-st.write("We check links in a secure sandbox so you don't have to.")
 
 target_url = st.text_input("Paste link here:", "https://")
 
 if st.button("Check Safety"):
-    with st.spinner("Analyzing..."):
+    with st.spinner("Opening secure sandbox..."):
         success, data = asyncio.run(analyze_link(target_url))
         if success:
             score = max(0, data["score"])
