@@ -5,7 +5,7 @@ import base64
 import requests
 from playwright.async_api import async_playwright
 
-# --- VIRUSTOTAL INTEGRATION ---
+# --- VIRUSTOTAL CHECK ---
 def get_vt_report(url):
     try:
         if "VT_API_KEY" not in st.secrets:
@@ -21,11 +21,11 @@ def get_vt_report(url):
     except Exception:
         return 0
 
-# --- THE SANDBOX ENGINE ---
+# --- ANALYSIS ENGINE ---
 async def analyze_link(url):
     results = {"score": 100, "flags": [], "title": "Unknown", "final_url": url}
     
-    # Simple Logic
+    # Static Analysis
     suspicious_keywords = ['login', 'verify', 'bank', 'secure', 'update', 'account']
     if any(word in url.lower() for word in suspicious_keywords):
         results["score"] -= 20
@@ -38,10 +38,10 @@ async def analyze_link(url):
     vt_malicious = get_vt_report(url)
     if vt_malicious and vt_malicious > 0:
         results["score"] -= (vt_malicious * 10)
-        results["flags"].append(f"🚨 **Known Threat:** {vt_malicious} security systems say this is DANGEROUS.")
+        results["flags"].append(f"🚨 **Known Threat:** {vt_malicious} security vendors say this is DANGEROUS.")
 
     async with async_playwright() as p:
-        # We assume the browser is ALREADY installed by setup.sh
+        # Browser is launched normally
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
@@ -56,23 +56,22 @@ async def analyze_link(url):
             await browser.close()
             return False, str(e)
 
-# --- THE INTERFACE ---
+# --- USER INTERFACE ---
 st.set_page_config(page_title="SafeLink Scanner", page_icon="🛡️")
 st.title("🛡️ Is This Link Safe?")
-st.write("We'll check it in a secure sandbox so you don't have to.")
+st.write("We check links in a secure sandbox so you don't have to.")
 
 target_url = st.text_input("Paste link here:", "https://")
 
-if st.button("Analyze Link"):
-    with st.spinner("Checking safety..."):
+if st.button("Check Safety"):
+    with st.spinner("Analyzing..."):
         success, data = asyncio.run(analyze_link(target_url))
         if success:
             score = max(0, data["score"])
             if score >= 80: st.success(f"### Score: {score}% — Safe ✅")
             elif score >= 50: st.warning(f"### Score: {score}% — Caution ⚠️")
             else: st.error(f"### Score: {score}% — DANGER 🛑")
-            
             for flag in data["flags"]: st.info(flag)
-            st.image("evidence.png", caption="Sandbox View")
+            st.image("evidence.png")
         else:
             st.error(f"Error: {data}")
