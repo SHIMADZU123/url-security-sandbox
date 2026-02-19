@@ -1,4 +1,13 @@
 import streamlit as st
+import requests
+
+def check_virustotal(url):
+    # This pulls the key directly from the Secrets you just saved!
+    api_key = st.secrets["VT_API_KEY"]
+    
+    vt_url = f"https://www.virustotal.com/api/v3/urls"
+    # ... code to send the URL to VirusTotal ...
+import streamlit as st
 import asyncio
 import os
 import re
