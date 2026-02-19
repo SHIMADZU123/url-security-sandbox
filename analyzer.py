@@ -31,16 +31,72 @@ def get_vt_report(url):
 async def analyze_link(url):
     results = {"score": 100, "flags": [], "title": "Unknown", "final_url": url}
     
-    # --- Human-Friendly Static Analysis ---
+    # --- Simple Warnings for Everyone ---
     suspicious_keywords = ['login', 'verify', 'bank', 'secure', 'update', 'account', 'signin', 'wp-admin']
     if any(word in url.lower() for word in suspicious_keywords):
         results["score"] -= 20
-        results["flags"].append("⚠️ **Suspicious Name:** The link uses words that hackers often use to trick people.")
+        results["flags"].append("⚠️ **Suspicious Name:** This link uses words like 'login' or 'bank' to try and trick you.")
 
     if not url.startswith("https://"):
         results["score"] -= 30
-        results["flags"].append("🔒 **No Padlock:** This site is not encrypted. Any info you type can be stolen.")
+        results["flags"].append("🔒 **No Security Lock:** This site is not private. Anything you type can be seen by hackers.")
 
-    # --- VirusTotal Intelligence ---
+    # --- VirusTotal Check ---
     vt_malicious = get_vt_report(url)
-    if vt_malicious and vt_
+    if vt_malicious and vt_malicious > 0:
+        results["score"] -= (vt_malicious * 10)
+        results["flags"].append(f"🚨 **Known Danger:** {vt_malicious} security companies have already reported this as a bad link.")
+
+    # --- Hidden Sandbox Browser ---
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context()
+        page = await context.new_page()
+        
+        try:
+            await page.goto(url, timeout=30000)
+            results["title"] = await page.title()
+            results["final_url"] = page.url
+            
+            # Check for hidden redirects
+            if results["final_url"].rstrip('/') != url.rstrip('/'):
+                results["score"] -= 15
+                results["flags"].append("🔀 **Secret Redirection:** This link tried to secretly take you to a different website.")
+
+            await page.screenshot(path="evidence.png")
+            await browser.close()
+            return True, results
+        except Exception as e:
+            await browser.close()
+            return False, "This website failed to open. Fake links often break or disappear quickly."
+
+# 3. USER INTERFACE (UI)
+st.set_page_config(page_title="SafeLink Scanner", page_icon="🛡️")
+
+st.title("🛡️ Is This Link Safe?")
+st.write("Paste a link below to see if it's a trick. We will open it safely for you.")
+
+target_url = st.text_input("Paste the link here:", "https://")
+
+if st.button("Check Safety Now"):
+    if not target_url.startswith("http"):
+        st.error("Please enter a full link (it must start with http:// or https://)")
+    else:
+        with st.spinner("Analyzing... Checking databases and opening the site safely..."):
+            success, data = asyncio.run(analyze_link(target_url))
+            
+            if success:
+                score = max(0, data["score"])
+                
+                # Big Safety Result
+                if score >= 80:
+                    st.success(f"### Safety Score: {score}% — Looks Safe ✅")
+                elif score >= 50:
+                    st.warning(f"### Safety Score: {score}% — Be Careful! ⚠️")
+                else:
+                    st.error(f"### Safety Score: {score}% — DANGER! 🛑")
+                
+                # Understandable Findings
+                st.subheader("What we found:")
+                if data["flags"]:
+                    for
