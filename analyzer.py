@@ -1,4 +1,14 @@
 import os
+import streamlit as st
+import asyncio
+
+# This command installs the browser into the Streamlit server
+if not os.path.exists("/home/appuser/.cache/ms-playwright"):
+    os.system("playwright install chromium")
+
+from playwright.async_api import async_playwright
+# ... the rest of your code ...
+import os
 os.system("playwright install chromium")
 import streamlit as st
 import asyncio
