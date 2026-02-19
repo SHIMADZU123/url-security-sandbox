@@ -1,3 +1,6 @@
 streamlit
 playwright
 asyncio
+plotly
+python-whois
+requests
