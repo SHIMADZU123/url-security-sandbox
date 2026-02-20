@@ -2,10 +2,9 @@ import streamlit as st
 import asyncio
 import base64
 import requests
-import os
 from playwright.async_api import async_playwright
 
-# --- 1. VIRUSTOTAL API CHECK ---
+# --- VIRUSTOTAL CHECK ---
 def get_vt_report(url):
     try:
         if "VT_API_KEY" not in st.secrets:
@@ -21,28 +20,29 @@ def get_vt_report(url):
     except:
         return 0
 
-# --- 2. THE SANDBOX ENGINE ---
+# --- THE SANDBOX ENGINE ---
 async def analyze_link(url):
     results = {"score": 100, "flags": [], "title": "Unknown", "final_url": url}
     
-    # Simple logic checks
-    if any(word in url.lower() for word in ['login', 'bank', 'verify', 'secure', 'update']):
+    # Simple logic check
+    suspicious_words = ['login', 'bank', 'verify', 'secure', 'update']
+    if any(word in url.lower() for word in suspicious_words):
         results["score"] -= 20
-        results["flags"].append("⚠️ **Suspicious Keywords:** This link uses words often used in phishing.")
+        results["flags"].append("⚠️ **Suspicious Name:** Uses words meant to trick you.")
 
     if not url.startswith("https://"):
         results["score"] -= 30
-        results["flags"].append("🔒 **Insecure Connection:** This site is not encrypted (no HTTPS).")
+        results["flags"].append("🔒 **Insecure:** No encryption found on this link.")
 
-    vt_malicious = get_vt_report(url)
-    if vt_malicious and vt_malicious > 0:
-        results["score"] -= (vt_malicious * 10)
-        results["flags"].append(f"🚨 **Security Alert:** {vt_malicious} engines flagged this as DANGEROUS.")
+    vt_threats = get_vt_report(url)
+    if vt_threats and vt_threats > 0:
+        results["score"] -= (vt_threats * 10)
+        results["flags"].append(f"🚨 **Threat Alert:** {vt_threats} security engines flagged this site.")
 
     # Launching the Sandbox
     async with async_playwright() as p:
         try:
-            # We use these specific flags to run in the restricted Streamlit environment
+            # Added flags to bypass Streamlit's environment restrictions
             browser = await p.chromium.launch(
                 headless=True, 
                 args=["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
@@ -57,34 +57,23 @@ async def analyze_link(url):
         except Exception as e:
             return False, f"Browser Error: {str(e)}"
 
-# --- 3. THE UI ---
-st.set_page_config(page_title="SafeLink AI Scanner", page_icon="🛡️")
+# --- INTERFACE ---
+st.set_page_config(page_title="SafeLink Scanner", page_icon="🛡️")
 st.title("🛡️ Is This Link Safe?")
-st.write("Scan links safely in our cloud-based sandbox.")
+st.write("Enter a link to test it safely in our isolated cloud sandbox.")
 
-target_url = st.text_input("Paste the link here:", "https://")
+target_url = st.text_input("Paste link here:", "https://")
 
-if st.button("Analyze Security Now"):
-    if not target_url.startswith("http"):
-        st.error("Please enter a full link (e.g., https://google.com)")
-    else:
-        with st.spinner("Opening secure sandbox... (Please wait)"):
-            success, data = asyncio.run(analyze_link(target_url))
+if st.button("Analyze Link"):
+    with st.spinner("Opening secure sandbox..."):
+        success, data = asyncio.run(analyze_link(target_url))
+        if success:
+            score = max(0, data["score"])
+            if score >= 80: st.success(f"### Score: {score}% — Safe ✅")
+            elif score >= 50: st.warning(f"### Score: {score}% — Caution ⚠️")
+            else: st.error(f"### Score: {score}% — DANGER 🛑")
             
-            if success:
-                score = max(0, data["score"])
-                if score >= 80:
-                    st.success(f"### Safety Score: {score}% — Likely Safe ✅")
-                elif score >= 50:
-                    st.warning(f"### Safety Score: {score}% — Use Caution! ⚠️")
-                else:
-                    st.error(f"### Safety Score: {score}% — HIGH RISK 🛑")
-
-                for flag in data["flags"]:
-                    st.info(flag)
-
-                st.divider()
-                st.subheader("Visual Proof")
-                st.image("evidence.png", caption="Screenshot from our secure server.")
-            else:
-                st.error(data)
+            for flag in data["flags"]: st.info(flag)
+            st.image("evidence.png", caption="Live Sandbox View")
+        else:
+            st.error(data)
