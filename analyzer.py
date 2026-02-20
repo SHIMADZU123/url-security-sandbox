@@ -176,8 +176,8 @@ if st.button("Initialize Deep Scan", type="primary"):
     
     # Check if it starts with http/https AND has a valid domain
     if not target_url.startswith("http") or not parsed_url.netloc:
-        # User typed an invalid link
-        st.error("The link is invalid.\n\n**There Is An Error, Please Contact us. Telegram ID: @shim_azu64**")
+        # User typed an invalid link (NO Telegram ID shown here)
+        st.error("The link is invalid.")
     else:
         with st.spinner("Querying global threat intelligence databases..."):
             try:
@@ -227,7 +227,7 @@ if st.button("Initialize Deep Scan", type="primary"):
                 if report["flags"]:
                     for flag in report["flags"]:
                         if "🚨" in flag or "🔓" in flag or "🛑" in flag:
-                            st.error(flag) # This remains standard to show security threats
+                            st.error(flag) 
                         elif "🔌" in flag:
                             st.info(flag)
                         else:
@@ -242,5 +242,5 @@ if st.button("Initialize Deep Scan", type="primary"):
                     st.write(f"**Root Domain:** `{report['domain']}`")
                     
             except Exception as e:
-                # Custom Error Message if the scan crashes for any reason
-                st.error("**There Is An Error, Please Contact us. Telegram ID: @shim_azu64**")
+                # Custom Error Message if the scan crashes for an actual system error
+                st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
