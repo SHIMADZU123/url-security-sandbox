@@ -92,13 +92,8 @@ def get_vt_report(url):
 # --- 2. SECURITY ENGINE ---
 def analyze_threat(raw_url):
     results = {"score": 100, "flags": [], "final_url": "", "domain": "", "age_days": None, "ssl_valid": False, "vt_malicious": 0}
-    
     final_url = unshorten_url(raw_url)
     results["final_url"] = final_url
-    if raw_url != final_url:
-        results["flags"].append("🔀 **URL Redirect:** The original link was shortened to hide the true destination.")
-        results["score"] -= 10
-
     domain = urllib.parse.urlparse(final_url).netloc
     results["domain"] = domain
     clean_domain = domain.replace("www.", "")
@@ -110,30 +105,13 @@ def analyze_threat(raw_url):
     if "@" in final_url:
         results["score"] -= 30
         results["flags"].append("🚨 **'@' Symbol Trick:** The link contains an '@' symbol, used to hide the real destination.")
-    
-    if clean_domain.count(".") >= 3:
-        results["score"] -= 15
-        results["flags"].append("⚠️ **Too Many Subdomains:** The domain has an unusual number of dots.")
-
-    if "-" in clean_domain:
-        results["score"] -= 10
-        results["flags"].append("⚠️ **Hyphenated Domain:** Scammers use hyphens to create fake lookalike domains.")
-
-    if len(final_url) > 75:
-        results["score"] -= 10
-        results["flags"].append("⚠️ **Unusually Long URL:** Excessively long links can hide malicious parts of the address.")
-
-    suspicious_words = ['login', 'verify', 'update', 'secure', 'account', 'banking', 'free', 'admin', 'invoice']
-    if any(word in final_url.lower() for word in suspicious_words):
-        results["score"] -= 20
-        results["flags"].append("⚠️ **Phishing Keywords:** The link uses words designed to trick you into entering a password.")
 
     if final_url.startswith("https"):
         ssl_valid, ssl_msg = check_ssl(domain)
         results["ssl_valid"] = ssl_valid
         if not ssl_valid:
             results["score"] -= 25
-            results["flags"].append(f"🔓 **Invalid SSL:** Connection is not secure. ({ssl_msg})")
+            results["flags"].append(f"🔓 **Invalid SSL:** Connection is not secure.")
     else:
         results["score"] -= 30
         results["flags"].append("🔓 **No SSL (HTTP):** This site does not use basic encryption.")
@@ -142,10 +120,7 @@ def analyze_threat(raw_url):
     results["age_days"] = age
     if age is not None and age < 30:
         results["score"] -= 30
-        results["flags"].append(f"⚠️ **Brand New Domain:** Website is only {age} days old (Common in phishing).")
-    elif age is None and not re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", clean_domain):
-        results["score"] -= 10
-        results["flags"].append("❓ **Hidden WHOIS:** Could not verify the creation date of this website.")
+        results["flags"].append(f"⚠️ **Brand New Domain:** Website is only {age} days old.")
 
     vt_flags, vt_msg = get_vt_report(final_url)
     results["vt_malicious"] = vt_flags
@@ -162,7 +137,6 @@ target_url = st.text_input("Enter target URL for security scanning:", "https://"
 
 if st.button("Initialize Deep Scan", type="primary"):
     parsed_url = urllib.parse.urlparse(target_url)
-    
     if not target_url.startswith("http") or not parsed_url.netloc:
         st.error("The link is invalid.")
     else:
@@ -170,10 +144,8 @@ if st.button("Initialize Deep Scan", type="primary"):
             try:
                 report = analyze_threat(target_url)
                 score = report["score"]
-    
                 st.divider()
                 col_chart, col_metrics = st.columns([1.5, 2])
-                
                 with col_chart:
                     gauge_color = "#28a745" if score >= 80 else "#ffc107" if score >= 50 else "#dc3545"
                     fig = go.Figure(go.Indicator(
@@ -184,27 +156,25 @@ if st.button("Initialize Deep Scan", type="primary"):
                     ))
                     fig.update_layout(height=280, margin=dict(l=20, r=20, t=40, b=20))
                     st.plotly_chart(fig, use_container_width=True)
-    
                 with col_metrics:
                     st.markdown("### Executive Summary")
-                    if score >= 80:
-                        st.success("✅ **STATUS: SECURE**")
-                    elif score >= 50:
-                        st.warning("⚠️ **STATUS: SUSPICIOUS**")
-                    else:
-                        st.error("🛑 **STATUS: MALICIOUS**")
-                    
+                    if score >= 80: st.success("✅ **STATUS: SECURE**")
+                    elif score >= 50: st.warning("⚠️ **STATUS: SUSPICIOUS**")
+                    else: st.error("🛑 **STATUS: MALICIOUS**")
                     m1, m2, m3 = st.columns(3)
                     m1.metric("VT Flags", f"{report['vt_malicious']}")
                     m2.metric("Domain Age", f"{report['age_days']}d" if report['age_days'] else "N/A")
                     m3.metric("SSL Status", "Secure 🔒" if report['ssl_valid'] else "Insecure 🔓")
-    
-                st.subheader("🚩 Threat Indicators")
-                if report["flags"]:
-                    for flag in report["flags"]:
-                        st.write(flag)
-                else:
-                    st.info("✨ Clean: No structural threats detected.")
-                    
             except Exception:
                 st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
+
+# --- 4. PERMANENT FOOTER ---
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.divider()
+st.markdown(
+    "<p style='text-align: center; color: gray; font-size: 14px;'>"
+    "For any help or technical support, please contact us.<br>"
+    "<b>Telegram Support ID: @shim_azu64</b>"
+    "</p>", 
+    unsafe_allow_html=True
+)
