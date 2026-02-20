@@ -6,122 +6,116 @@ import urllib.parse
 def deep_forensic_analysis(url):
     score = 100
     red_flags = []
-    if not url.startswith(('http://', 'https://')): url = 'https://' + url
+    
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
     parsed = urllib.parse.urlparse(url)
     domain = parsed.netloc.lower()
-    if any(s in domain for s in ['bit.ly', 'tinyurl.com', 't.co']):
+
+    # Detection Logic
+    if any(s in domain for s in ['bit.ly', 'tinyurl.com', 't.co', 'rebrand.ly']):
         score -= 70
-        red_flags.append(("HIGH RISK", "URL Masking Detected."))
+        red_flags.append(("HIGH RISK", "URL Masking: Shortened link detected."))
+    
+    if any(url.lower().endswith(ext) for ext in ['.exe', '.msi', '.zip']):
+        score -= 90
+        red_flags.append(("CRITICAL", "Payload: Suspicious executable detected."))
+
     return max(0, score), red_flags
 
-# --- 2. UI CONFIGURATION ---
+# --- 2. ELITE UI CONFIGURATION ---
 st.set_page_config(page_title="Forensic AI | NTU", page_icon="🛡️", layout="wide")
-st.markdown('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">', unsafe_allow_html=True)
 
+# Styling: Glassmorphism & Sleek Inputs
 st.markdown("""
     <style>
     .stApp { background-color: #05070a; color: #e6edf3; }
     
-    /* Hero Card */
+    /* Header Card */
     .hero-card {
         background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.95));
         padding: 40px; border-radius: 35px; border: 1px solid rgba(48, 54, 61, 0.7);
         text-align: center; margin-bottom: 40px;
     }
 
-    /* THE NEW SLEEK SEARCH BAR SECTION */
-    .search-container {
+    /* THE NEW SLEEK SEARCH BAR */
+    .search-wrapper {
         background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
-        padding: 30px;
-        margin-bottom: 30px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        padding: 25px; border-radius: 20px;
+        border: 1px solid rgba(88, 166, 255, 0.1);
+        margin-bottom: 20px;
     }
     
-    .search-label {
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        color: #8b949e;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    /* Streamlit Input Overrides */
     .stTextInput input {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(88, 166, 255, 0.2) !important;
-        color: #ffffff !important;
+        background-color: #0d1117 !important;
+        border: 1px solid #30363d !important;
+        color: #58a6ff !important;
         border-radius: 12px !important;
-        padding: 15px 20px !important;
-        font-size: 1.1rem !important;
+        padding: 15px !important;
     }
+    
     .stTextInput input:focus {
         border-color: #58a6ff !important;
-        background-color: rgba(255, 255, 255, 0.08) !important;
-        box-shadow: 0 0 20px rgba(88, 166, 255, 0.15) !important;
+        box-shadow: 0 0 15px rgba(88, 166, 255, 0.1) !important;
     }
 
     /* Modern Button */
     div.stButton > button {
         background: #1f6feb !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 12px 30px !important;
-        color: white !important;
-        font-weight: 600 !important;
-        transition: 0.3s all ease !important;
+        border-radius: 10px !important; color: white !important;
+        width: 100%; font-weight: 700 !important; border: none !important;
+        padding: 12px !important; transition: 0.3s ease;
     }
-    div.stButton > button:hover {
-        background: #388bfd !important;
-        box-shadow: 0 0 25px rgba(31, 111, 235, 0.5);
-    }
+    div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(31, 111, 235, 0.3); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. HEADER ---
+# --- 3. HEADER (FIXED: No more AttributeError) ---
 c1, c2, c3 = st.columns([1, 4, 1])
-with c1: st.image("NTU logo.jpg", width=120) if True else None
+
+with c1:
+    try:
+        st.image("NTU logo.jpg", width=120)
+    except:
+        st.write("🏛️")
+
 with c2:
     st.markdown(f"""
         <div class="hero-card">
-            <p style="color: #58a6ff; font-weight: 700;">
-                <span style="font-size: 1.2rem;">C</span>ybersecurity <span style="font-size: 1.2rem;">E</span>ngineering 
-                <span style="font-size: 1.2rem;">D</span>epartment <span style="font-size: 1.2rem;">S</span>tudents 
+            <p style="color: #58a6ff; font-weight: 700; margin-bottom: 12px;">
+                <span style="font-size: 1.25rem;">C</span>ybersecurity 
+                <span style="font-size: 1.25rem;">E</span>ngineering 
+                <span style="font-size: 1.25rem;">D</span>epartment 
+                <span style="font-size: 1.25rem;">S</span>tudents 
             </p>
-            <h1 style="color: #ffffff; font-size: 3rem; font-weight: 900; margin: 0;">AI THREAT INTELLIGENCE</h1>
+            <h6 style="color: #8b949e; letter-spacing: 5px; font-weight: 700;">NORTHERN TECHNICAL UNIVERSITY</h6>
+            <h1 style="color: #ffffff; font-size: 3.2rem; font-weight: 900; margin: 0;">AI THREAT INTELLIGENCE</h1>
         </div>
     """, unsafe_allow_html=True)
-with c3: st.image("collegue logo.jpg", width=120) if True else None
 
-# --- 4. THE NEW GLASS SEARCH BAR ---
-st.markdown("""
-    <div class="search-label">
-        <i class="bi bi-shield-shaded"></i> Forensic Analysis Target Acquisition
-    </div>
-""", unsafe_allow_html=True)
+with c3:
+    try:
+        st.image("collegue logo.jpg", width=120)
+    except:
+        st.write("💻")
 
-# Using a container to apply the glass effect
+# --- 4. THE NEW SEARCH INTERFACE ---
+st.markdown("### 🔍 Forensic Target Acquisition")
 with st.container():
-    target_url = st.text_input("INPUT", label_visibility="collapsed", placeholder="Enter URL to analyze signatures...")
+    target_url = st.text_input("URL INPUT", label_visibility="collapsed", placeholder="Enter target URL for deep packet inspection...")
     
-    col_btn, _ = st.columns([1, 3])
-    with col_btn:
-        if st.button("EXECUTE SCAN"):
+    btn_col, _ = st.columns([1, 3])
+    with btn_col:
+        if st.button("EXECUTE SYSTEM SCAN"):
             if target_url:
                 score, flags = deep_forensic_analysis(target_url)
-                st.success(f"Analysis complete. Security Score: {score}%")
+                st.divider()
+                # (Remaining result logic here)
+                st.write(f"**Security Integrity Score: {score}%**")
+                for sev, msg in flags:
+                    st.error(f"**[{sev}]** {msg}")
 
 # --- 5. SYSTEM INFO ---
 st.write("---")
-s1, s2 = st.columns(2)
-with s1:
-    st.markdown("""<div style="background:rgba(22,27,34,0.5); padding:20px; border-radius:15px; border:1px solid #30363d;">
-    <h4 style="color:#58a6ff;"><i class="bi bi-headset"></i> Support</h4>@shim_azu64</div>""", unsafe_allow_html=True)
-with s2:
-    st.markdown("""<div style="background:rgba(22,27,34,0.5); padding:20px; border-radius:15px; border:1px solid #30363d;">
-    <h4 style="color:#58a6ff;"><i class="bi bi-cpu"></i> Node</h4>Kirkuk, Iraq</div>""", unsafe_allow_html=True)
+st.markdown("<center style='color: #484f58; font-size: 12px;'>NORTHERN TECHNICAL UNIVERSITY | CYBERSECURITY ENGINEERING</center>", unsafe_allow_html=True)
