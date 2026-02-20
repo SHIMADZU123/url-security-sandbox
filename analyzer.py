@@ -23,13 +23,17 @@ with st.sidebar:
     st.error("🎣 **Phishing Keywords:**\nScam links often try to create urgency using words like 'login', 'verify', or 'invoice'.")
 
 # --- PROFESSIONAL ACADEMIC HEADER ---
+# Using highly reliable public CDNs so the images never break on the live web app!
 NTU_LOGO_URL = "https://upload.wikimedia.org/wikipedia/en/b/b5/Northern_Technical_University_logo.png"
-AI_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/2082/2082858.png"
+AI_LOGO_URL = "https://img.icons8.com/fluent/512/artificial-intelligence.png" # Guaranteed public icon server
 
 head_col1, head_col2, head_col3 = st.columns([1, 3, 1])
 
 with head_col1:
-    st.image(NTU_LOGO_URL, width=120)
+    try:
+        st.image(NTU_LOGO_URL, use_container_width=True)
+    except:
+        st.info("🎓 NTU Logo")
 
 with head_col2:
     st.markdown("<h1 style='text-align: center;'>AI Threat Intelligence Dashboard</h1>", unsafe_allow_html=True)
@@ -37,10 +41,12 @@ with head_col2:
     st.markdown("<p style='text-align: center;'>Advanced URL Security & Phishing Detection System</p>", unsafe_allow_html=True)
 
 with head_col3:
-    st.image(AI_LOGO_URL, width=120)
+    try:
+        st.image(AI_LOGO_URL, use_container_width=True)
+    except:
+        st.info("🧠 AI Logo")
 
 st.divider()
-
 # --- 1. DEEP ANALYSIS FUNCTIONS ---
 def unshorten_url(url):
     try:
