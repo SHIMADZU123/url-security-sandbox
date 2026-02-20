@@ -170,9 +170,14 @@ st.markdown("### 🔍 Start URL Inspection")
 target_url = st.text_input("Enter target URL for security scanning:", "https://")
 
 if st.button("Initialize Deep Scan", type="primary"):
-    if not target_url.startswith("http"):
-        # Custom Error Message for bad input
-        st.error("Invalid input. Please enter a valid URL starting with http:// or https://\n\n**There Is An Error, Please Contact us. Telegram ID: @shim_azu64**")
+    
+    # Parse the URL to ensure it actually has a proper domain structure
+    parsed_url = urllib.parse.urlparse(target_url)
+    
+    # Check if it starts with http/https AND has a valid domain
+    if not target_url.startswith("http") or not parsed_url.netloc:
+        # User typed an invalid link
+        st.error("The link is invalid.\n\n**There Is An Error, Please Contact us. Telegram ID: @shim_azu64**")
     else:
         with st.spinner("Querying global threat intelligence databases..."):
             try:
