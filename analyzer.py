@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import urllib.parse
 import re
 
-# --- 1. CORE FORENSIC ENGINE ---
+# --- 1. CORE FORENSIC ENGINE (PRO LOGIC) ---
 def deep_forensic_analysis(url):
     score = 100
     red_flags = []
@@ -15,7 +15,7 @@ def deep_forensic_analysis(url):
     domain = parsed.netloc.lower()
     path = parsed.path.lower()
 
-    # SMART FILE DETECTION
+    # SMART FILE DETECTION: Only flags downloads, not domain names
     payload_exts = ('.exe', '.com', '.scr', '.bin', '.dll', '.zip', '.msi')
     if path.endswith(payload_exts) or "eicar" in url.lower():
         score -= 90
@@ -39,6 +39,7 @@ st.set_page_config(page_title="Forensic AI | Cybersecurity Engineering", page_ic
 
 st.markdown("""
     <style>
+    /* Dark Industry Theme */
     .stApp {
         background-color: #05070a;
         background-image: radial-gradient(circle at 2px 2px, #161b22 1px, transparent 0);
@@ -66,7 +67,7 @@ st.markdown("""
         margin-bottom: 15px;
     }
 
-    .support-box {
+    .info-box {
         background: rgba(48, 54, 61, 0.2);
         padding: 30px;
         border-radius: 20px;
@@ -106,7 +107,7 @@ with c3:
         try: st.image("collegue logo.jpg", width=140)
         except: st.markdown("<div style='text-align:right'>### 💻</div>", unsafe_allow_html=True)
 
-# --- CORE CONSOLE ---
+# --- SCAN INTERFACE ---
 st.markdown("### 🔍 Forensic Target Acquisition")
 target_url = st.text_input("INPUT VECTOR (URL):", placeholder="Analyze external URL signatures...")
 
@@ -134,34 +135,36 @@ if st.button("EXECUTE SYSTEM SCAN"):
 
             for sev, msg in flags:
                 st.markdown(f"<div class='threat-card'><strong>[{sev}]</strong> {msg}</div>", unsafe_allow_html=True)
+            if not flags:
+                st.info("No structural threat signatures identified.")
 
-# --- UPDATED SUPPORT & STUDENT INFO SECTION ---
+# --- SUPPORT & INFO SECTION ---
 st.write("---")
-s_col1, s_col2 = st.columns(2)
+s1, s2 = st.columns(2)
 
-with s_col1:
+with s1:
     st.markdown("""
-        <div class="support-box">
+        <div class="info-box">
             <h3 style="color: #58a6ff; margin-top: 0;">🛠️ Technical Support</h3>
-            <p>Developed for the Cybersecurity Engineering Department. For technical inquiries or node status:</p>
-            <p><strong>System ID:</strong> NTU-AI-64-STABLE</p>
-            <p><strong>Telegram:</strong> <a href='https://t.me/shim_azu64' style='color:#58a6ff;'>@shim_azu64</a></p>
+            <p>Direct assistance for the AI Forensic Suite and Node administration.</p>
+            <p><strong>Telegram ID:</strong> <a href='https://t.me/shim_azu64' style='color:#58a6ff;'>@shim_azu64</a></p>
+            <p><strong>System Status:</strong> <span style='color:#238636;'>● Operational</span></p>
         </div>
     """, unsafe_allow_html=True)
 
-with s_col2:
+with s2:
     st.markdown("""
-        <div class="support-box">
-            <h3 style="color: #58a6ff; margin-top: 0;">📍 Forensic Node</h3>
-            <p>Active monitoring and signature updates provided by the student department unit.</p>
-            <p><strong>Last Database Sync:</strong> Feb 2026</p>
+        <div class="info-box">
+            <h3 style="color: #58a6ff; margin-top: 0;">📍 Deployment Details</h3>
+            <p>Real-time heuristic database sync and regional node monitoring.</p>
             <p><strong>Node Location:</strong> Kirkuk, Iraq</p>
+            <p><strong>Last Database Sync:</strong> Feb 2026</p>
         </div>
     """, unsafe_allow_html=True)
 
-# --- FINAL FOOTER (UPDATED AS REQUESTED) ---
+# --- FINAL FOOTER (YOUR SPECIFIC TEXT) ---
 st.markdown("""
     <div style="margin-top: 50px; padding: 20px; border-top: 1px solid #30363d; text-align: center; color: #8b949e; font-size: 14px; letter-spacing: 1px;">
-        NORTHERN TECHNICAL UNIVERSITY | <b>CYBERSECURITY ENGINEERING DEPARTMENT STUDENTS</b> | v8.2-ELITE
+        NORTHERN TECHNICAL UNIVERSITY | <b>CYBERSECURITY ENGINEERING DEPARTMENT STUDENTS</b> | v8.5-STABLE
     </div>
 """, unsafe_allow_html=True)
