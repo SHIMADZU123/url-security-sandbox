@@ -24,8 +24,8 @@ with st.sidebar:
 
 # --- PROFESSIONAL ACADEMIC HEADER ---
 # Using highly reliable public CDNs so the images never break on the live web app!
-NTU_LOGO_URL = "https://upload.wikimedia.org/wikipedia/en/b/b5/Northern_Technical_University_logo.png"
-AI_LOGO_URL = "https://img.icons8.com/fluent/512/artificial-intelligence.png" # Guaranteed public icon server
+NTU_LOGO_URL = "blob:https://gemini.google.com/c7fde64c-4f15-47c5-9d5a-d5db9a28c12d"
+AI_LOGO_URL = "blob:https://gemini.google.com/f7bb8681-8d82-4773-957d-72abc6748727" # Guaranteed public icon server
 
 head_col1, head_col2, head_col3 = st.columns([1, 3, 1])
 
