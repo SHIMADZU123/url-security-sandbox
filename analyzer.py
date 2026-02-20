@@ -12,9 +12,8 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="AI Threat Intelligence", page_icon="🛡️", layout="wide")
 
 # --- PROFESSIONAL ACADEMIC HEADER ---
-# We use live URLs from the internet so you don't have to upload any images!
 NTU_LOGO_URL = "https://upload.wikimedia.org/wikipedia/en/b/b5/Northern_Technical_University_logo.png"
-AI_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/2082/2082858.png" # Professional AI Brain/Circuit icon
+AI_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/2082/2082858.png"
 
 head_col1, head_col2, head_col3 = st.columns([1, 3, 1])
 
@@ -76,7 +75,7 @@ def get_vt_report(url):
     except:
         return 0, "API Error"
 
-# --- 2. MAIN SECURITY ENGINE ---
+# --- 2. MAIN SECURITY ENGINE (STRICT) ---
 def analyze_threat(raw_url):
     results = {"score": 100, "flags": [], "final_url": "", "domain": "", "age_days": None, "ssl_valid": False, "vt_malicious": 0}
     
@@ -89,6 +88,13 @@ def analyze_threat(raw_url):
     domain = urllib.parse.urlparse(final_url).netloc
     results["domain"] = domain
 
+    # NEW: Suspicious Keyword Check
+    suspicious_words = ['login', 'verify', 'update', 'secure', 'account', 'banking', 'free', 'admin', 'invoice']
+    if any(word in final_url.lower() for word in suspicious_words):
+        results["score"] -= 20
+        results["flags"].append("⚠️ **Phishing Keywords:** The link uses words designed to trick users into entering passwords.")
+
+    # NEW: Strict SSL Check
     if final_url.startswith("https"):
         ssl_valid, ssl_msg = check_ssl(domain)
         results["ssl_valid"] = ssl_valid
@@ -99,17 +105,24 @@ def analyze_threat(raw_url):
         results["score"] -= 30
         results["flags"].append("🔓 **No SSL (HTTP):** This site does not use basic encryption.")
 
+    # NEW: Strict Domain Age Check
     age = get_domain_age(domain)
     results["age_days"] = age
     if age is not None and age < 30:
         results["score"] -= 30
         results["flags"].append(f"⚠️ **Brand New Domain:** Website is only {age} days old (Common in phishing).")
+    elif age is None:
+        results["score"] -= 10
+        results["flags"].append("❓ **Hidden WHOIS:** Could not verify the creation date of this website.")
 
-    vt_flags, _ = get_vt_report(final_url)
+    # NEW: VirusTotal System Status Checks
+    vt_flags, vt_msg = get_vt_report(final_url)
     results["vt_malicious"] = vt_flags
     if vt_flags > 0:
         results["score"] -= (vt_flags * 15)
         results["flags"].append(f"🚨 **Malware Alert:** {vt_flags} security engines flagged this URL.")
+    elif "API Key missing" in str(vt_msg):
+        results["flags"].append("🔌 **System Warning:** VirusTotal Database is disconnected (Missing API Key).")
 
     results["score"] = max(0, results["score"])
     return results
@@ -168,8 +181,10 @@ if st.button("Initialize Deep Scan", type="primary"):
             st.subheader("🚩 Threat Indicators Found")
             if report["flags"]:
                 for flag in report["flags"]:
-                    if "🚨" in flag or "🔓" in flag:
+                    if "🚨" in flag or "🔓" in flag or "🛑" in flag:
                         st.error(flag)
+                    elif "🔌" in flag:
+                        st.info(flag)
                     else:
                         st.warning(flag)
             else:
