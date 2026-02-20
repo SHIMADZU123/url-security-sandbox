@@ -11,6 +11,17 @@ import plotly.graph_objects as go
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="AI Threat Intelligence", page_icon="🛡️", layout="wide")
 
+# --- EDUCATIONAL SIDEBAR (NEW) ---
+with st.sidebar:
+    st.markdown("### 📚 Security Education")
+    st.markdown("What Red Flags does our AI look for?")
+    
+    st.error("🚨 **Known Malware:**\nCross-references the URL with 70+ global cybersecurity engines to detect known viruses.")
+    st.warning("⚠️ **Brand New Domains:**\nPhishing sites are often shut down quickly. A website less than 30 days old is highly suspicious.")
+    st.info("🔓 **Missing Encryption (SSL):**\nLegitimate websites encrypt your data. If a site uses `http://` instead of `https://`, hackers can intercept your passwords.")
+    st.warning("🔀 **Hidden Redirects:**\nHackers use link shorteners (like bit.ly) to hide the true, dangerous destination of a link.")
+    st.error("🎣 **Phishing Keywords:**\nScam links often try to create urgency using words like 'login', 'verify', or 'invoice'.")
+
 # --- PROFESSIONAL ACADEMIC HEADER ---
 NTU_LOGO_URL = "https://upload.wikimedia.org/wikipedia/en/b/b5/Northern_Technical_University_logo.png"
 AI_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/2082/2082858.png"
@@ -88,13 +99,13 @@ def analyze_threat(raw_url):
     domain = urllib.parse.urlparse(final_url).netloc
     results["domain"] = domain
 
-    # NEW: Suspicious Keyword Check
+    # Suspicious Keyword Check
     suspicious_words = ['login', 'verify', 'update', 'secure', 'account', 'banking', 'free', 'admin', 'invoice']
     if any(word in final_url.lower() for word in suspicious_words):
         results["score"] -= 20
         results["flags"].append("⚠️ **Phishing Keywords:** The link uses words designed to trick users into entering passwords.")
 
-    # NEW: Strict SSL Check
+    # Strict SSL Check
     if final_url.startswith("https"):
         ssl_valid, ssl_msg = check_ssl(domain)
         results["ssl_valid"] = ssl_valid
@@ -105,7 +116,7 @@ def analyze_threat(raw_url):
         results["score"] -= 30
         results["flags"].append("🔓 **No SSL (HTTP):** This site does not use basic encryption.")
 
-    # NEW: Strict Domain Age Check
+    # Strict Domain Age Check
     age = get_domain_age(domain)
     results["age_days"] = age
     if age is not None and age < 30:
@@ -115,7 +126,7 @@ def analyze_threat(raw_url):
         results["score"] -= 10
         results["flags"].append("❓ **Hidden WHOIS:** Could not verify the creation date of this website.")
 
-    # NEW: VirusTotal System Status Checks
+    # VirusTotal System Status Checks
     vt_flags, vt_msg = get_vt_report(final_url)
     results["vt_malicious"] = vt_flags
     if vt_flags > 0:
@@ -178,7 +189,7 @@ if st.button("Initialize Deep Scan", type="primary"):
                 m3.metric("Encryption", "Valid SSL 🔒" if report['ssl_valid'] else "Invalid 🔓")
 
             # Middle Section: Findings
-            st.subheader("🚩 Threat Indicators Found")
+            st.subheader("🚩 Threat Indicators Found (The Red Flags)")
             if report["flags"]:
                 for flag in report["flags"]:
                     if "🚨" in flag or "🔓" in flag or "🛑" in flag:
