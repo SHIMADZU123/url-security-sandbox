@@ -30,11 +30,11 @@ with head_col1:
     try:
         st.image("NTU logo.jpg", use_container_width=True)
     except FileNotFoundError:
-        st.error("Error: 'NTU logo.jpg' not found in GitHub.")
+        st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
 
 with head_col2:
-    st.markdown("<h1 style='text-align: center;'>AI Threat Intelligence Dashboard</h1>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: gray;'>Northern Technical University | AI & Computer Engineering</h4>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>Welcome to the AI Threat Intelligence</h1>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: gray;'>Powered by Northern Technical University | AI & Computer Engineering College Students</h4>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Advanced URL Security & Phishing Detection System</p>", unsafe_allow_html=True)
 
 with head_col3:
@@ -42,7 +42,7 @@ with head_col3:
     try:
         st.image("collegue logo.jpg", use_container_width=True)
     except FileNotFoundError:
-        st.error("Error: 'collegue logo.jpg' not found in GitHub.")
+        st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
 
 st.divider()
 
@@ -171,65 +171,71 @@ target_url = st.text_input("Enter target URL for security scanning:", "https://"
 
 if st.button("Initialize Deep Scan", type="primary"):
     if not target_url.startswith("http"):
-        st.error("Invalid input. Please enter a valid URL starting with http:// or https://")
+        # Custom Error Message for bad input
+        st.error("Invalid input. Please enter a valid URL starting with http:// or https://\n\n**There Is An Error, Please Contact us. Telegram ID: @shim_azu64**")
     else:
         with st.spinner("Querying global threat intelligence databases..."):
-            report = analyze_threat(target_url)
-            score = report["score"]
-
-            st.divider()
-            
-            # Top Section
-            col_chart, col_metrics = st.columns([1.5, 2])
-            
-            with col_chart:
-                gauge_color = "#28a745" if score >= 80 else "#ffc107" if score >= 50 else "#dc3545"
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=score,
-                    title={'text': "Calculated Safety Score", 'font': {'size': 24}},
-                    gauge={
-                        'axis': {'range': [0, 100]},
-                        'bar': {'color': gauge_color},
-                        'steps': [
-                            {'range': [0, 49], 'color': "#ffe6e6"},
-                            {'range': [50, 79], 'color': "#fff3cd"},
-                            {'range': [80, 100], 'color': "#e2f0e5"}
-                        ]
-                    }
-                ))
-                fig.update_layout(height=280, margin=dict(l=20, r=20, t=40, b=20))
-                st.plotly_chart(fig, use_container_width=True)
-
-            with col_metrics:
-                st.markdown("### Executive Summary")
-                if score >= 80:
-                    st.success("✅ **STATUS: SECURE** - No critical threats detected.")
-                elif score >= 50:
-                    st.warning("⚠️ **STATUS: SUSPICIOUS** - Proceed with caution.")
-                else:
-                    st.error("🛑 **STATUS: MALICIOUS** - High-risk indicators present.")
+            try:
+                report = analyze_threat(target_url)
+                score = report["score"]
+    
+                st.divider()
                 
-                m1, m2, m3 = st.columns(3)
-                m1.metric("VirusTotal Hits", f"{report['vt_malicious']} Flags")
-                m2.metric("Domain Age", f"{report['age_days']} Days" if report['age_days'] else "Unknown")
-                m3.metric("Encryption", "Valid SSL 🔒" if report['ssl_valid'] else "Invalid 🔓")
-
-            # Middle Section: Findings
-            st.subheader("🚩 Threat Indicators Found (The Red Flags)")
-            if report["flags"]:
-                for flag in report["flags"]:
-                    if "🚨" in flag or "🔓" in flag or "🛑" in flag:
-                        st.error(flag)
-                    elif "🔌" in flag:
-                        st.info(flag)
+                # Top Section
+                col_chart, col_metrics = st.columns([1.5, 2])
+                
+                with col_chart:
+                    gauge_color = "#28a745" if score >= 80 else "#ffc107" if score >= 50 else "#dc3545"
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=score,
+                        title={'text': "Calculated Safety Score", 'font': {'size': 24}},
+                        gauge={
+                            'axis': {'range': [0, 100]},
+                            'bar': {'color': gauge_color},
+                            'steps': [
+                                {'range': [0, 49], 'color': "#ffe6e6"},
+                                {'range': [50, 79], 'color': "#fff3cd"},
+                                {'range': [80, 100], 'color': "#e2f0e5"}
+                            ]
+                        }
+                    ))
+                    fig.update_layout(height=280, margin=dict(l=20, r=20, t=40, b=20))
+                    st.plotly_chart(fig, use_container_width=True)
+    
+                with col_metrics:
+                    st.markdown("### Executive Summary")
+                    if score >= 80:
+                        st.success("✅ **STATUS: SECURE** - No critical threats detected.")
+                    elif score >= 50:
+                        st.warning("⚠️ **STATUS: SUSPICIOUS** - Proceed with caution.")
                     else:
-                        st.warning(flag)
-            else:
-                st.info("✨ Clean: Zero threat indicators detected during scan.")
-
-            # Bottom Section: Raw Data
-            with st.expander("🔬 View Raw Forensic Data"):
-                st.write(f"**Target URL:** `{target_url}`")
-                st.write(f"**Resolved Destination:** `{report['final_url']}`")
-                st.write(f"**Root Domain:** `{report['domain']}`")
+                        st.error("🛑 **STATUS: MALICIOUS** - High-risk indicators present.")
+                    
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("VirusTotal Hits", f"{report['vt_malicious']} Flags")
+                    m2.metric("Domain Age", f"{report['age_days']} Days" if report['age_days'] else "Unknown")
+                    m3.metric("Encryption", "Valid SSL 🔒" if report['ssl_valid'] else "Invalid 🔓")
+    
+                # Middle Section: Findings
+                st.subheader("🚩 Threat Indicators Found (The Red Flags)")
+                if report["flags"]:
+                    for flag in report["flags"]:
+                        if "🚨" in flag or "🔓" in flag or "🛑" in flag:
+                            st.error(flag) # This remains standard to show security threats
+                        elif "🔌" in flag:
+                            st.info(flag)
+                        else:
+                            st.warning(flag)
+                else:
+                    st.info("✨ Clean: Zero threat indicators detected during scan.")
+    
+                # Bottom Section: Raw Data
+                with st.expander("🔬 View Raw Forensic Data"):
+                    st.write(f"**Target URL:** `{target_url}`")
+                    st.write(f"**Resolved Destination:** `{report['final_url']}`")
+                    st.write(f"**Root Domain:** `{report['domain']}`")
+                    
+            except Exception as e:
+                # Custom Error Message if the scan crashes for any reason
+                st.error("**There Is An Error, Please Contact us. Telegram ID: @shim_azu64**")
