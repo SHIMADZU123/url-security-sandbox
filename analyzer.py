@@ -23,23 +23,14 @@ with st.sidebar:
     st.error("🎣 **Phishing Keywords:**\nScam links often try to create urgency using words like 'login', 'verify', or 'invoice'.")
 
 # --- PROFESSIONAL ACADEMIC HEADER ---
-# Using highly reliable public CDNs so the images never break on the live web app!
-NTU_LOGO_URL = "blob:https://gemini.google.com/c7fde64c-4f15-47c5-9d5a-d5db9a28c12d"
-AI_LOGO_URL = "blob:https://gemini.google.com/f7bb8681-8d82-4773-957d-72abc6748727" # Guaranteed public icon server
-
-with head_col1:
-    st.image("NTU logo.jog", use_container_width=True)
-
-with head_col1:
-    st.image("collegue logo.jog", use_container_width=True)
-    
 head_col1, head_col2, head_col3 = st.columns([1, 3, 1])
 
 with head_col1:
+    # Using your exact local file for the NTU logo
     try:
-        st.image(NTU_LOGO_URL, use_container_width=True)
-    except:
-        st.info("🎓 NTU Logo")
+        st.image("NTU logo.jpg", use_container_width=True)
+    except FileNotFoundError:
+        st.error("Error: 'NTU logo.jpg' not found in GitHub.")
 
 with head_col2:
     st.markdown("<h1 style='text-align: center;'>AI Threat Intelligence Dashboard</h1>", unsafe_allow_html=True)
@@ -47,12 +38,14 @@ with head_col2:
     st.markdown("<p style='text-align: center;'>Advanced URL Security & Phishing Detection System</p>", unsafe_allow_html=True)
 
 with head_col3:
+    # Using your exact local file for the colleague/college logo
     try:
-        st.image(AI_LOGO_URL, use_container_width=True)
-    except:
-        st.info("🧠 AI Logo")
+        st.image("collegue logo.jpg", use_container_width=True)
+    except FileNotFoundError:
+        st.error("Error: 'collegue logo.jpg' not found in GitHub.")
 
 st.divider()
+
 # --- 1. DEEP ANALYSIS FUNCTIONS ---
 def unshorten_url(url):
     try:
@@ -112,36 +105,26 @@ def analyze_threat(raw_url):
     results["domain"] = domain
     clean_domain = domain.replace("www.", "")
 
-    # ==========================================
-    # NEW: STRUCTURAL URL RED FLAGS ANALYSIS
-    # ==========================================
-    
-    # 1. IP Address Detection (e.g., http://192.168.1.1/login)
+    # STRUCTURAL URL RED FLAGS ANALYSIS
     if re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", clean_domain):
         results["score"] -= 40
-        results["flags"].append("🚨 **IP Address Domain:** The link uses an IP address instead of a standard name. This is a massive red flag for phishing.")
+        results["flags"].append("🚨 **IP Address Domain:** The link uses an IP address instead of a standard name.")
     
-    # 2. "@" Symbol Trick (e.g., http://google.com@baddomain.com)
     if "@" in final_url:
         results["score"] -= 30
-        results["flags"].append("🚨 **'@' Symbol Trick:** The link contains an '@' symbol, which hackers use to trick your browser into hiding the real destination.")
+        results["flags"].append("🚨 **'@' Symbol Trick:** The link contains an '@' symbol, used to hide the real destination.")
     
-    # 3. Multiple Subdomains (e.g., login.secure.update.paypal.com.baddomain.com)
     if clean_domain.count(".") >= 3:
         results["score"] -= 15
-        results["flags"].append("⚠️ **Too Many Subdomains:** The domain has an unusual number of dots, which is a trick used to mimic legitimate websites.")
+        results["flags"].append("⚠️ **Too Many Subdomains:** The domain has an unusual number of dots.")
 
-    # 4. Hyphenated Domain (e.g., paypal-security.com)
     if "-" in clean_domain:
         results["score"] -= 10
-        results["flags"].append("⚠️ **Hyphenated Domain:** The domain contains a hyphen (-). Scammers frequently use hyphens to create fake lookalike domains.")
+        results["flags"].append("⚠️ **Hyphenated Domain:** Scammers frequently use hyphens to create fake lookalike domains.")
 
-    # 5. Extremely Long URL
     if len(final_url) > 75:
         results["score"] -= 10
-        results["flags"].append("⚠️ **Unusually Long URL:** Hackers often use excessively long links to hide malicious parts of the web address from the user.")
-
-    # ==========================================
+        results["flags"].append("⚠️ **Unusually Long URL:** Excessively long links can hide malicious parts of the web address.")
 
     # Keyword Check
     suspicious_words = ['login', 'verify', 'update', 'secure', 'account', 'banking', 'free', 'admin', 'invoice']
