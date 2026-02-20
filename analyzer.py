@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import urllib.parse
 import re
 
-# --- 1. CORE FORENSIC ENGINE (SMART PATH LOGIC) ---
+# --- 1. CORE FORENSIC ENGINE ---
 def deep_forensic_analysis(url):
     score = 100
     red_flags = []
@@ -15,22 +15,22 @@ def deep_forensic_analysis(url):
     domain = parsed.netloc.lower()
     path = parsed.path.lower()
 
-    # SMART FILE DETECTION: Only flags downloads, ignores safe domains like google.com
+    # SMART FILE DETECTION: Ignores top-level domains, catches malicious paths
     payload_exts = ('.exe', '.com', '.scr', '.bin', '.dll', '.zip', '.msi')
     if path.endswith(payload_exts) or "eicar" in url.lower():
         score -= 90
-        red_flags.append(("CRITICAL", "Malware Payload Signature: URL targets a suspicious executable binary or known malware test signature."))
+        red_flags.append(("CRITICAL", "Malware Payload Signature: URL targets a suspicious executable binary or test signature."))
 
     # PHISHING HEURISTICS
     blacklist = ['phishing', 'testsafebrowsing', 'verify', 'secure-update', 'login-check']
     if any(p in url.lower() for p in blacklist):
         score -= 85
-        red_flags.append(("CRITICAL", "Social Engineering Vector: Path contains keywords used in high-confidence credential harvesting."))
+        red_flags.append(("CRITICAL", "Social Engineering Vector: High-confidence phishing keywords identified in path."))
 
     # INFRASTRUCTURE ANOMALIES
     if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", domain):
         score -= 50
-        red_flags.append(("HIGH", "Non-DNS Routing: Connection bypasses standard DNS resolution. Typical for C2 infrastructure."))
+        red_flags.append(("HIGH", "Non-DNS Routing: Direct IP access detected, bypassing standard reputation protocols."))
 
     return max(0, score), red_flags
 
@@ -46,11 +46,11 @@ st.markdown("""
         color: #e6edf3;
     }
     
-    /* Enterprise Hero Container */
+    /* Enterprise Hero Card */
     .hero-card {
         background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.95));
         backdrop-filter: blur(25px);
-        padding: 40px 40px 60px 40px;
+        padding: 50px 40px;
         border-radius: 35px;
         border: 1px solid rgba(48, 54, 61, 0.7);
         text-align: center;
@@ -86,7 +86,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER LAYOUT (THE CHANGE IS HERE) ---
+# --- HEADER LAYOUT ---
 c1, c2, c3 = st.columns([1, 4, 1])
 with c1:
     try: st.image("NTU logo.jpg", width=140)
@@ -95,13 +95,12 @@ with c1:
 with c2:
     st.markdown("""
         <div class="hero-card">
-            <p style="color: #58a6ff; font-weight: 800; letter-spacing: 2px; margin-bottom: 20px; font-size: 1rem;">
+            <h6 style="color: #8b949e; letter-spacing: 5px; font-weight: 700; margin-bottom: 15px;">NORTHERN TECHNICAL UNIVERSITY</h6>
+            <h1 style="color: #ffffff; font-size: 3.5rem; font-weight: 900; margin: 0; letter-spacing: -1px;">AI THREAT INTELLIGENCE</h1>
+            <div style="height: 4px; background: #1f6feb; width: 80px; margin: 25px auto; border-radius: 10px;"></div>
+            <p style="color: #58a6ff; font-size: 1.2rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">
                 CYBERSECURITY ENGINEERING DEPARTMENT STUDENTS
             </p>
-            <h6 style="color: #8b949e; letter-spacing: 5px; font-weight: 700; margin-bottom: 5px;">NORTHERN TECHNICAL UNIVERSITY</h6>
-            <h1 style="color: #ffffff; font-size: 3.2rem; font-weight: 900; margin: 0;">AI THREAT INTELLIGENCE</h1>
-            <div style="height: 4px; background: #1f6feb; width: 100px; margin: 25px auto; border-radius: 10px;"></div>
-            <p style="color: #8b949e; font-size: 1.1rem; letter-spacing: 1px;">College of AI & Computer Engineering | Forensic Analysis Suite</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -166,9 +165,9 @@ with s2:
         </div>
     """, unsafe_allow_html=True)
 
-# --- FINAL CLEAN FOOTER ---
+# --- FINAL FOOTER ---
 st.markdown("""
     <div style="margin-top: 50px; padding: 20px; border-top: 1px solid #30363d; text-align: center; color: #484f58; font-size: 13px;">
-        NORTHERN TECHNICAL UNIVERSITY | v8.6-STABLE | ENCRYPTED LINK
+        NORTHERN TECHNICAL UNIVERSITY | v9.0-STABLE | SECURE PROTOCOL ACTIVE
     </div>
 """, unsafe_allow_html=True)
