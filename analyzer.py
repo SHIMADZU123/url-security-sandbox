@@ -6,17 +6,17 @@ import socket
 import urllib.parse
 from datetime import datetime
 import base64
+import re
 import plotly.graph_objects as go
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="AI Threat Intelligence", page_icon="🛡️", layout="wide")
 
-# --- EDUCATIONAL SIDEBAR (NEW) ---
+# --- EDUCATIONAL SIDEBAR ---
 with st.sidebar:
     st.markdown("### 📚 Security Education")
     st.markdown("What Red Flags does our AI look for?")
-    
-    st.error("🚨 **Known Malware:**\nCross-references the URL with 70+ global cybersecurity engines to detect known viruses.")
+    st.error("🚨 **Structural Tricks:**\nHackers use tricks like IP addresses instead of domains, or the `@` symbol to hide the real website.")
     st.warning("⚠️ **Brand New Domains:**\nPhishing sites are often shut down quickly. A website less than 30 days old is highly suspicious.")
     st.info("🔓 **Missing Encryption (SSL):**\nLegitimate websites encrypt your data. If a site uses `http://` instead of `https://`, hackers can intercept your passwords.")
     st.warning("🔀 **Hidden Redirects:**\nHackers use link shorteners (like bit.ly) to hide the true, dangerous destination of a link.")
@@ -86,7 +86,7 @@ def get_vt_report(url):
     except:
         return 0, "API Error"
 
-# --- 2. MAIN SECURITY ENGINE (STRICT) ---
+# --- 2. MAIN SECURITY ENGINE ---
 def analyze_threat(raw_url):
     results = {"score": 100, "flags": [], "final_url": "", "domain": "", "age_days": None, "ssl_valid": False, "vt_malicious": 0}
     
@@ -98,14 +98,46 @@ def analyze_threat(raw_url):
 
     domain = urllib.parse.urlparse(final_url).netloc
     results["domain"] = domain
+    clean_domain = domain.replace("www.", "")
 
-    # Suspicious Keyword Check
+    # ==========================================
+    # NEW: STRUCTURAL URL RED FLAGS ANALYSIS
+    # ==========================================
+    
+    # 1. IP Address Detection (e.g., http://192.168.1.1/login)
+    if re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", clean_domain):
+        results["score"] -= 40
+        results["flags"].append("🚨 **IP Address Domain:** The link uses an IP address instead of a standard name. This is a massive red flag for phishing.")
+    
+    # 2. "@" Symbol Trick (e.g., http://google.com@baddomain.com)
+    if "@" in final_url:
+        results["score"] -= 30
+        results["flags"].append("🚨 **'@' Symbol Trick:** The link contains an '@' symbol, which hackers use to trick your browser into hiding the real destination.")
+    
+    # 3. Multiple Subdomains (e.g., login.secure.update.paypal.com.baddomain.com)
+    if clean_domain.count(".") >= 3:
+        results["score"] -= 15
+        results["flags"].append("⚠️ **Too Many Subdomains:** The domain has an unusual number of dots, which is a trick used to mimic legitimate websites.")
+
+    # 4. Hyphenated Domain (e.g., paypal-security.com)
+    if "-" in clean_domain:
+        results["score"] -= 10
+        results["flags"].append("⚠️ **Hyphenated Domain:** The domain contains a hyphen (-). Scammers frequently use hyphens to create fake lookalike domains.")
+
+    # 5. Extremely Long URL
+    if len(final_url) > 75:
+        results["score"] -= 10
+        results["flags"].append("⚠️ **Unusually Long URL:** Hackers often use excessively long links to hide malicious parts of the web address from the user.")
+
+    # ==========================================
+
+    # Keyword Check
     suspicious_words = ['login', 'verify', 'update', 'secure', 'account', 'banking', 'free', 'admin', 'invoice']
     if any(word in final_url.lower() for word in suspicious_words):
         results["score"] -= 20
-        results["flags"].append("⚠️ **Phishing Keywords:** The link uses words designed to trick users into entering passwords.")
+        results["flags"].append("⚠️ **Phishing Keywords:** The link uses words designed to trick you into entering a password.")
 
-    # Strict SSL Check
+    # SSL Check
     if final_url.startswith("https"):
         ssl_valid, ssl_msg = check_ssl(domain)
         results["ssl_valid"] = ssl_valid
@@ -116,17 +148,17 @@ def analyze_threat(raw_url):
         results["score"] -= 30
         results["flags"].append("🔓 **No SSL (HTTP):** This site does not use basic encryption.")
 
-    # Strict Domain Age Check
+    # Domain Age Check
     age = get_domain_age(domain)
     results["age_days"] = age
     if age is not None and age < 30:
         results["score"] -= 30
         results["flags"].append(f"⚠️ **Brand New Domain:** Website is only {age} days old (Common in phishing).")
-    elif age is None:
+    elif age is None and not re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", clean_domain):
         results["score"] -= 10
         results["flags"].append("❓ **Hidden WHOIS:** Could not verify the creation date of this website.")
 
-    # VirusTotal System Status Checks
+    # VirusTotal Checks
     vt_flags, vt_msg = get_vt_report(final_url)
     results["vt_malicious"] = vt_flags
     if vt_flags > 0:
@@ -152,7 +184,7 @@ if st.button("Initialize Deep Scan", type="primary"):
 
             st.divider()
             
-            # Top Section: Gauge and Metrics
+            # Top Section
             col_chart, col_metrics = st.columns([1.5, 2])
             
             with col_chart:
