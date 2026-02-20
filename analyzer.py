@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import urllib.parse
 import re
 
-# --- 1. UPDATED SMART SCAN ENGINE ---
+# --- 1. CORE FORENSIC ENGINE (SMART LOGIC) ---
 def deep_forensic_analysis(url):
     score = 100
     red_flags = []
@@ -15,79 +15,170 @@ def deep_forensic_analysis(url):
     domain = parsed.netloc.lower()
     path = parsed.path.lower()
 
-    # SMART FILE CHECK: Only flags if .exe/.com is a FILE at the end, not a domain
-    malware_extensions = ('.exe', '.com', '.scr', '.bin', '.dll', '.zip')
-    if path.endswith(malware_extensions) or "eicar" in url.lower():
+    # SMART FILE DETECTION: Only flags .com/.exe if it is a FILE, not a domain
+    payload_exts = ('.exe', '.com', '.scr', '.bin', '.dll', '.zip', '.msi')
+    if path.endswith(payload_exts) or "eicar" in url.lower():
         score -= 90
-        red_flags.append(("CRITICAL", "Payload Signature: System identified a high-risk executable file path targeting local system directories."))
+        red_flags.append(("CRITICAL", "Malware Payload Signature: URL targets a suspicious executable binary or known malware test signature."))
 
     # PHISHING HEURISTICS
-    blacklist = ['phishing', 'testsafebrowsing', 'verify', 'secure-update']
+    blacklist = ['phishing', 'testsafebrowsing', 'verify', 'secure-update', 'login-check']
     if any(p in url.lower() for p in blacklist):
         score -= 85
-        red_flags.append(("CRITICAL", "Social Engineering Pattern: URL architecture matches known credential harvesting signatures."))
+        red_flags.append(("CRITICAL", "Social Engineering Vector: Path contains high-confidence phishing keywords used in credential harvesting."))
 
-    # INFRASTRUCTURE CHECKS
+    # INFRASTRUCTURE ANOMALIES
     if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", domain):
         score -= 50
-        red_flags.append(("CRITICAL", "Non-DNS Routing: Direct IP access detected, bypassing standard domain reputation protocols."))
+        red_flags.append(("HIGH", "Non-DNS Routing: Connection bypasses standard DNS resolution. Typical for command-and-control (C2) servers."))
+
+    if domain.startswith("xn--"):
+        score -= 60
+        red_flags.append(("CRITICAL", "Homograph Spoofing: Punycode characters detected. This is a visual deception technique mimicking legitimate brands."))
 
     return max(0, score), red_flags
 
-# --- 2. ENTERPRISE UI (MAINTAINED) ---
-st.set_page_config(page_title="Forensic AI | Enterprise Console", page_icon="🛡️", layout="wide")
+# --- 2. ELITE UI CONFIGURATION ---
+st.set_page_config(page_title="Forensic AI | NTU Console", page_icon="🛡️", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #05070a; background-image: radial-gradient(circle at 1px 1px, #161b22 1px, transparent 0); background-size: 32px 32px; color: #e6edf3; }
-    .hero-container { background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.95)); backdrop-filter: blur(20px); padding: 50px; border-radius: 32px; border: 1px solid rgba(48, 54, 61, 0.5); text-align: center; margin-bottom: 40px; }
-    .flag-card { background: rgba(248, 81, 73, 0.05); padding: 20px; border-radius: 12px; border-left: 6px solid #f85149; margin-bottom: 12px; }
-    div.stButton > button { background: #1f6feb !important; border: none !important; border-radius: 10px !important; padding: 18px !important; font-weight: 700 !important; width: 100% !important; text-transform: uppercase; letter-spacing: 2px; }
+    /* Dark Industry Theme */
+    .stApp {
+        background-color: #05070a;
+        background-image: radial-gradient(circle at 2px 2px, #161b22 1px, transparent 0);
+        background-size: 40px 40px;
+        color: #e6edf3;
+    }
+    
+    /* Enterprise Hero Container */
+    .hero-card {
+        background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.95));
+        backdrop-filter: blur(25px);
+        padding: 60px 40px;
+        border-radius: 35px;
+        border: 1px solid rgba(48, 54, 61, 0.7);
+        text-align: center;
+        margin-bottom: 50px;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+    }
+
+    /* Forensic Flag Cards */
+    .threat-card {
+        background: rgba(248, 81, 73, 0.08);
+        padding: 22px;
+        border-radius: 15px;
+        border-left: 6px solid #f85149;
+        margin-bottom: 15px;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Custom Support Section */
+    .support-box {
+        background: rgba(48, 54, 61, 0.2);
+        padding: 30px;
+        border-radius: 20px;
+        border: 1px solid #30363d;
+        margin-top: 50px;
+    }
+
+    /* Enterprise Button */
+    div.stButton > button {
+        background: linear-gradient(180deg, #1f6feb 0%, #0969da 100%) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        font-weight: 800 !important;
+        width: 100% !important;
+        letter-spacing: 2px;
+        transition: 0.3s ease;
+    }
+    div.stButton > button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 25px rgba(31, 111, 235, 0.5);
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# HEADER
-col_l, col_m, col_r = st.columns([1, 4, 1])
-with col_l:
-    try: st.image("NTU logo.jpg", width=130)
+# --- HEADER LAYOUT (SYMMETRIC) ---
+c1, c2, c3 = st.columns([1, 4, 1])
+with c1:
+    try: st.image("NTU logo.jpg", width=140)
     except: st.markdown("### 🏛️")
-with col_m:
+with c2:
     st.markdown("""
-        <div class="hero-container">
-            <h6 style="color: #58a6ff; letter-spacing: 6px; margin-bottom: 15px; font-weight: 600;">NORTHERN TECHNICAL UNIVERSITY</h6>
-            <h1 style="color: #ffffff; font-size: 3.5rem; font-weight: 900; margin-bottom: 10px;">AI THREAT INTELLIGENCE</h1>
-            <p style="color: #8b949e;">Advanced Cyber-Forensics Unit | College of AI & Computer Engineering</p>
+        <div class="hero-card">
+            <h6 style="color: #58a6ff; letter-spacing: 5px; font-weight: 700; margin-bottom: 10px;">NORTHERN TECHNICAL UNIVERSITY</h6>
+            <h1 style="color: #ffffff; font-size: 3.2rem; font-weight: 900; margin: 0;">AI THREAT INTELLIGENCE</h1>
+            <div style="height: 4px; background: #1f6feb; width: 100px; margin: 25px auto; border-radius: 10px;"></div>
+            <p style="color: #8b949e; font-size: 1.1rem; letter-spacing: 1px;">College of AI & Computer Engineering | Forensic Analysis Suite</p>
         </div>
     """, unsafe_allow_html=True)
-with col_r:
-    sub_l, sub_r = st.columns([1, 5])
-    with sub_r:
-        try: st.image("collegue logo.jpg", width=130)
+with c3:
+    # Right alignment for college logo
+    _, c3r = st.columns([1, 5])
+    with c3r:
+        try: st.image("collegue logo.jpg", width=140)
         except: st.markdown("<div style='text-align:right'>### 💻</div>", unsafe_allow_html=True)
 
-# INTERFACE
-target_vector = st.text_input("ENTER TARGET URL FOR DEEP PACKET INSPECTION:", placeholder="https://google.com")
+# --- CORE CONSOLE ---
+st.markdown("### 🔍 Forensic Target Acquisition")
+target_url = st.text_input("INPUT VECTOR (URL):", placeholder="https://external-target-analysis.com")
 
 if st.button("EXECUTE SYSTEM SCAN"):
-    if target_vector:
-        score, flags = deep_forensic_analysis(target_vector)
-        res_col1, res_col2 = st.columns([1, 1.5])
+    if target_url:
+        score, flags = deep_forensic_analysis(target_url)
+        st.divider()
+        r1, r2 = st.columns([1, 1.5])
         
-        with res_col1:
-            g_color = "#238636" if score > 75 else "#d29922" if score > 45 else "#f85149"
+        with r1:
+            color = "#238636" if score > 75 else "#d29922" if score > 45 else "#f85149"
             fig = go.Figure(go.Indicator(
                 mode="gauge+number", value=score,
-                number={'suffix': "%", 'font': {'color': g_color, 'size': 85}},
-                gauge={'bar': {'color': g_color}, 'bgcolor': "#010409", 'axis': {'range': [0, 100], 'visible': False}}
+                number={'suffix': "%", 'font': {'color': color, 'size': 80}},
+                gauge={'bar': {'color': color}, 'bgcolor': "#010409", 'axis': {'range': [0, 100], 'visible': False}}
             ))
             fig.update_layout(height=400, paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"})
             st.plotly_chart(fig, use_container_width=True)
 
-        with res_col2:
-            st.markdown("### 📄 Threat Intelligence Manifest")
-            if score < 45: st.error("🛑 CRITICAL VULNERABILITY: IMMEDIATE ACTION RECOMMENDED")
-            elif score < 75: st.warning("⚠️ ELEVATED RISK: ANOMALIES DETECTED")
-            else: st.success("✅ INTEGRITY VERIFIED: NO MALICIOUS SIGNATURES FOUND")
+        with r2:
+            st.markdown("### 📊 Threat Analysis Report")
+            if score < 45: st.error("🛑 STATUS: CRITICAL THREAT DETECTED")
+            elif score < 75: st.warning("⚠️ STATUS: ELEVATED ANOMALIES")
+            else: st.success("✅ STATUS: SYSTEM INTEGRITY VERIFIED")
 
-            for severity, msg in flags:
-                st.markdown(f"<div class='flag-card'><span style='color:#f85149; font-weight:800;'>[{severity}]</span> {msg}</div>", unsafe_allow_html=True)
+            for sev, msg in flags:
+                st.markdown(f"<div class='threat-card'><strong>[{sev}]</strong> {msg}</div>", unsafe_allow_html=True)
+            if not flags:
+                st.info("No structural threat signatures identified.")
+
+# --- 3. SUPPORT & INFORMATION SECTION ---
+st.write("---")
+s_col1, s_col2 = st.columns(2)
+
+with s_col1:
+    st.markdown("""
+        <div class="support-box">
+            <h3 style="color: #58a6ff; margin-top: 0;">🛠️ Technical Support</h3>
+            <p>If you encounter any issues with the forensic engine or require assistance with large-scale URL batch processing, please reach out to our support node.</p>
+            <p><strong>System ID:</strong> NTU-AI-64-STABLE</p>
+            <p><strong>Telegram:</strong> <a href='https://t.me/shim_azu64' style='color:#58a6ff;'>@shim_azu64</a></p>
+        </div>
+    """, unsafe_allow_html=True)
+
+with s_col2:
+    st.markdown("""
+        <div class="support-box">
+            <h3 style="color: #58a6ff; margin-top: 0;">📄 Documentation</h3>
+            <p>This system uses heuristic analysis and neural signature matching to identify phishing vectors and malware payloads in real-time.</p>
+            <p><strong>Last Database Sync:</strong> Feb 2026</p>
+            <p><strong>Node Location:</strong> Kirkuk, Iraq</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+# --- FINAL FOOTER ---
+st.markdown("""
+    <div style="margin-top: 50px; padding: 20px; border-top: 1px solid #30363d; text-align: center; color: #484f58; font-size: 13px;">
+        NORTHERN TECHNICAL UNIVERSITY | COLLEGE OF AI & COMPUTER ENGINEERING | <b>DEVELOPER ID: @shim_azu64</b> | v8.0-ELITE
+    </div>
+""", unsafe_allow_html=True)
