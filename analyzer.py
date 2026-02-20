@@ -12,169 +12,168 @@ import plotly.graph_objects as go
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="AI Threat Intelligence", page_icon="🛡️", layout="wide")
 
-# --- EDUCATIONAL SIDEBAR ---
-with st.sidebar:
-    st.markdown("### 📚 Security Education")
-    st.markdown("What Red Flags does our AI look for?")
-    st.error("🚨 **Structural Tricks:**\nHackers use tricks like IP addresses instead of domains, or the `@` symbol to hide the real website.")
-    st.warning("⚠️ **Brand New Domains:**\nPhishing sites are often shut down quickly. A website less than 30 days old is highly suspicious.")
-    st.info("🔓 **Missing Encryption (SSL):**\nLegitimate websites encrypt your data. If a site uses `http://` instead of `https://`, hackers can intercept your passwords.")
-    st.warning("🔀 **Hidden Redirects:**\nHackers use link shorteners (like bit.ly) to hide the true, dangerous destination of a link.")
-    st.error("🎣 **Phishing Keywords:**\nScam links often try to create urgency using words like 'login', 'verify', or 'invoice'.")
+# --- CUSTOM CSS FOR ANIMATION & STYLE ---
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    div.stButton > button:first-child {
+        background-color: #0068c9;
+        color: white;
+        width: 100%;
+        border-radius: 10px;
+    }
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #0e1117;
+        color: gray;
+        text-align: center;
+        padding: 10px;
+        font-size: 14px;
+        border-top: 1px solid #31333F;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- PROFESSIONAL ACADEMIC HEADER ---
-head_col1, head_col2, head_col3 = st.columns([1, 3, 1])
+# --- SIDEBAR (Educational Component) ---
+with st.sidebar:
+    st.image("https://img.icons8.com/fluency/96/shield.png", width=80)
+    st.markdown("### 📚 Analysis Engine")
+    st.info("Our AI uses **Heuristic Scanning** to detect patterns used by attackers before they are reported to blacklists.")
+    st.divider()
+    st.markdown("**College:** AI & Computer Engineering")
+    st.markdown("**University:** Northern Technical University")
+
+# --- PROFESSIONAL HEADER ---
+head_col1, head_col2, head_col3 = st.columns([1, 4, 1])
 
 with head_col1:
     try:
         st.image("NTU logo.jpg", use_container_width=True)
-    except Exception:
-        st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
+    except:
+        st.write("🏛️ **NTU**")
 
 with head_col2:
-    st.markdown("<h1 style='text-align: center;'>Welcome to the AI Threat Intelligence</h1>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: gray;'>Powered by Northern Technical University | AI & Computer Engineering College Students</h4>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Advanced URL Security & Phishing Detection System</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white; margin-bottom: 0;'>Welcome to the AI Threat Intelligence</h1>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: #FFCB70; margin-top: 0;'>Powered by Northern Technical University | AI & Computer Engineering College</h4>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #bdc3c7;'>Advanced URL Security & Phishing Detection System</p>", unsafe_allow_html=True)
 
 with head_col3:
     try:
         st.image("collegue logo.jpg", use_container_width=True)
-    except Exception:
-        st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
+    except:
+        st.write("💻 **AI & CE**")
 
 st.divider()
 
-# --- 1. ANALYSIS FUNCTIONS ---
-def unshorten_url(url):
-    try:
-        session = requests.Session()
-        response = session.head(url, allow_redirects=True, timeout=5)
-        return response.url
-    except:
-        return url
-
+# --- SECURITY ENGINE FUNCTIONS ---
 def get_domain_age(domain):
     try:
         w = whois.whois(domain)
-        creation_date = w.creation_date
-        if type(creation_date) is list:
-            creation_date = creation_date[0]
-        if creation_date:
-            return (datetime.now() - creation_date).days
-        return None
-    except:
-        return None
+        creation = w.creation_date
+        if isinstance(creation, list): creation = creation[0]
+        return (datetime.now() - creation).days if creation else None
+    except: return None
 
 def check_ssl(domain):
     try:
         context = ssl.create_default_context()
-        with socket.create_connection((domain, 443), timeout=5) as sock:
+        with socket.create_connection((domain, 443), timeout=3) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
-                return True, "Valid SSL Certificate"
-    except Exception as e:
-        return False, str(e)
+                return True
+    except: return False
 
-def get_vt_report(url):
-    try:
-        if "VT_API_KEY" not in st.secrets:
-            return 0, "API Key missing."
-        api_key = st.secrets["VT_API_KEY"]
-        url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
-        vt_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
-        response = requests.get(vt_url, headers={"x-apikey": api_key})
-        if response.status_code == 200:
-            stats = response.json()['data']['attributes']['last_analysis_stats']
-            return stats.get('malicious', 0), stats
-        return 0, "API Error"
-    except:
-        return 0, "API Error"
-
-# --- 2. SECURITY ENGINE ---
-def analyze_threat(raw_url):
-    results = {"score": 100, "flags": [], "final_url": "", "domain": "", "age_days": None, "ssl_valid": False, "vt_malicious": 0}
-    final_url = unshorten_url(raw_url)
-    results["final_url"] = final_url
-    domain = urllib.parse.urlparse(final_url).netloc
-    results["domain"] = domain
-    clean_domain = domain.replace("www.", "")
-
-    if re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", clean_domain):
-        results["score"] -= 40
-        results["flags"].append("🚨 **IP Address Domain:** The link uses an IP address instead of a standard name.")
+def analyze_url(url):
+    # Starting score is 100 (Perfectly Safe)
+    score = 100
+    findings = []
     
-    if "@" in final_url:
-        results["score"] -= 30
-        results["flags"].append("🚨 **'@' Symbol Trick:** The link contains an '@' symbol, used to hide the real destination.")
+    # 1. Check for IP Address instead of Domain
+    domain = urllib.parse.urlparse(url).netloc
+    if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", domain):
+        score -= 40
+        findings.append("🚨 Link uses a raw IP address (Highly Suspicious)")
 
-    if final_url.startswith("https"):
-        ssl_valid, ssl_msg = check_ssl(domain)
-        results["ssl_valid"] = ssl_valid
-        if not ssl_valid:
-            results["score"] -= 25
-            results["flags"].append(f"🔓 **Invalid SSL:** Connection is not secure.")
-    else:
-        results["score"] -= 30
-        results["flags"].append("🔓 **No SSL (HTTP):** This site does not use basic encryption.")
+    # 2. Check for SSL
+    if not url.startswith("https"):
+        score -= 20
+        findings.append("🔓 No Encryption (HTTP used instead of HTTPS)")
+    elif not check_ssl(domain):
+        score -= 15
+        findings.append("⚠️ SSL Certificate is invalid or expired")
 
+    # 3. Check for urgency keywords
+    scam_keywords = ['login', 'verify', 'update', 'banking', 'secure', 'account']
+    if any(key in url.lower() for key in scam_keywords):
+        score -= 10
+        findings.append("🎣 Contains phishing-style keywords")
+
+    # 4. Check domain age
     age = get_domain_age(domain)
-    results["age_days"] = age
-    if age is not None and age < 30:
-        results["score"] -= 30
-        results["flags"].append(f"⚠️ **Brand New Domain:** Website is only {age} days old.")
+    if age and age < 30:
+        score -= 30
+        findings.append(f"⚠️ Brand New Domain (Created {age} days ago)")
 
-    vt_flags, vt_msg = get_vt_report(final_url)
-    results["vt_malicious"] = vt_flags
-    if vt_flags > 0:
-        results["score"] -= (vt_flags * 15)
-        results["flags"].append(f"🚨 **Malware Alert:** {vt_flags} security engines flagged this URL.")
+    return max(0, score), findings
 
-    results["score"] = max(0, min(100, results["score"]))
-    return results
+# --- MAIN INTERFACE ---
+url_input = st.text_input("🔗 Enter the URL to scan:", placeholder="https://example.com")
 
-# --- 3. DASHBOARD UI ---
-st.markdown("### 🔍 Start URL Inspection")
-target_url = st.text_input("Enter target URL for security scanning:", "https://")
-
-if st.button("Initialize Deep Scan", type="primary"):
-    parsed_url = urllib.parse.urlparse(target_url)
-    if not target_url.startswith("http") or not parsed_url.netloc:
-        st.error("The link is invalid.")
+if st.button("Initialize Live Scan"):
+    if not url_input or "." not in url_input:
+        st.error("Please enter a valid URL.")
     else:
-        with st.spinner("Querying global threat intelligence databases..."):
-            try:
-                report = analyze_threat(target_url)
-                score = report["score"]
-                st.divider()
-                col_chart, col_metrics = st.columns([1.5, 2])
-                with col_chart:
-                    gauge_color = "#28a745" if score >= 80 else "#ffc107" if score >= 50 else "#dc3545"
-                    fig = go.Figure(go.Indicator(
-                        mode="gauge+number",
-                        value=score,
-                        title={'text': "Safety Score", 'font': {'size': 24}},
-                        gauge={'axis': {'range': [0, 100]}, 'bar': {'color': gauge_color}}
-                    ))
-                    fig.update_layout(height=280, margin=dict(l=20, r=20, t=40, b=20))
-                    st.plotly_chart(fig, use_container_width=True)
-                with col_metrics:
-                    st.markdown("### Executive Summary")
-                    if score >= 80: st.success("✅ **STATUS: SECURE**")
-                    elif score >= 50: st.warning("⚠️ **STATUS: SUSPICIOUS**")
-                    else: st.error("🛑 **STATUS: MALICIOUS**")
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("VT Flags", f"{report['vt_malicious']}")
-                    m2.metric("Domain Age", f"{report['age_days']}d" if report['age_days'] else "N/A")
-                    m3.metric("SSL Status", "Secure 🔒" if report['ssl_valid'] else "Insecure 🔓")
-            except Exception:
-                st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
+        with st.spinner("Analyzing threat vectors..."):
+            score, findings = analyze_url(url_input)
+            
+            # --- LIVE GAUGE SECTION ---
+            col_gauge, col_details = st.columns([1, 1])
+            
+            with col_gauge:
+                # Dynamic Color selection
+                color = "#28a745" if score > 75 else "#ffa500" if score > 40 else "#d32f2f"
+                
+                fig = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=score,
+                    domain={'x': [0, 1], 'y': [0, 1]},
+                    title={'text': "Safety Score", 'font': {'size': 24}},
+                    gauge={
+                        'axis': {'range': [0, 100], 'tickcolor': "white"},
+                        'bar': {'color': color},
+                        'bgcolor': "white",
+                        'steps': [
+                            {'range': [0, 40], 'color': "#f8d7da"},
+                            {'range': [40, 75], 'color': "#fff3cd"},
+                            {'range': [75, 100], 'color': "#d4edda"}
+                        ],
+                        'threshold': {'line': {'color': "black", 'width': 4}, 'value': score}
+                    }
+                ))
+                fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white", 'family': "Arial"})
+                st.plotly_chart(fig, use_container_width=True)
 
-# --- 4. PERMANENT FOOTER ---
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.divider()
+            with col_details:
+                st.subheader("Scan Report")
+                if score > 75:
+                    st.success("✅ This URL appears safe.")
+                elif score > 40:
+                    st.warning("⚠️ Proceed with caution. Issues detected.")
+                else:
+                    st.error("🛑 DANGER: High probability of phishing.")
+                
+                for f in findings:
+                    st.write(f)
+
+# --- PERMANENT CONTACT FOOTER ---
 st.markdown(
-    "<p style='text-align: center; color: gray; font-size: 14px;'>"
-    "For any help or technical support, please contact us.<br>"
-    "<b>Telegram Support ID: @shim_azu64</b>"
-    "</p>", 
+    f"""
+    <div class="footer">
+        <p>For any help or technical support, please contact us. <br>
+        <b>Telegram Support ID: @shim_azu64</b></p>
+    </div>
+    """,
     unsafe_allow_html=True
 )
