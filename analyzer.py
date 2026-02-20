@@ -26,10 +26,9 @@ with st.sidebar:
 head_col1, head_col2, head_col3 = st.columns([1, 3, 1])
 
 with head_col1:
-    # Using your exact local file for the NTU logo
     try:
         st.image("NTU logo.jpg", use_container_width=True)
-    except FileNotFoundError:
+    except Exception:
         st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
 
 with head_col2:
@@ -38,15 +37,14 @@ with head_col2:
     st.markdown("<p style='text-align: center;'>Advanced URL Security & Phishing Detection System</p>", unsafe_allow_html=True)
 
 with head_col3:
-    # Using your exact local file for the colleague/college logo
     try:
         st.image("collegue logo.jpg", use_container_width=True)
-    except FileNotFoundError:
+    except Exception:
         st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
 
 st.divider()
 
-# --- 1. DEEP ANALYSIS FUNCTIONS ---
+# --- 1. ANALYSIS FUNCTIONS ---
 def unshorten_url(url):
     try:
         session = requests.Session()
@@ -91,7 +89,7 @@ def get_vt_report(url):
     except:
         return 0, "API Error"
 
-# --- 2. MAIN SECURITY ENGINE ---
+# --- 2. SECURITY ENGINE ---
 def analyze_threat(raw_url):
     results = {"score": 100, "flags": [], "final_url": "", "domain": "", "age_days": None, "ssl_valid": False, "vt_malicious": 0}
     
@@ -105,7 +103,6 @@ def analyze_threat(raw_url):
     results["domain"] = domain
     clean_domain = domain.replace("www.", "")
 
-    # STRUCTURAL URL RED FLAGS ANALYSIS
     if re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", clean_domain):
         results["score"] -= 40
         results["flags"].append("🚨 **IP Address Domain:** The link uses an IP address instead of a standard name.")
@@ -120,19 +117,17 @@ def analyze_threat(raw_url):
 
     if "-" in clean_domain:
         results["score"] -= 10
-        results["flags"].append("⚠️ **Hyphenated Domain:** Scammers frequently use hyphens to create fake lookalike domains.")
+        results["flags"].append("⚠️ **Hyphenated Domain:** Scammers use hyphens to create fake lookalike domains.")
 
     if len(final_url) > 75:
         results["score"] -= 10
-        results["flags"].append("⚠️ **Unusually Long URL:** Excessively long links can hide malicious parts of the web address.")
+        results["flags"].append("⚠️ **Unusually Long URL:** Excessively long links can hide malicious parts of the address.")
 
-    # Keyword Check
     suspicious_words = ['login', 'verify', 'update', 'secure', 'account', 'banking', 'free', 'admin', 'invoice']
     if any(word in final_url.lower() for word in suspicious_words):
         results["score"] -= 20
         results["flags"].append("⚠️ **Phishing Keywords:** The link uses words designed to trick you into entering a password.")
 
-    # SSL Check
     if final_url.startswith("https"):
         ssl_valid, ssl_msg = check_ssl(domain)
         results["ssl_valid"] = ssl_valid
@@ -143,7 +138,6 @@ def analyze_threat(raw_url):
         results["score"] -= 30
         results["flags"].append("🔓 **No SSL (HTTP):** This site does not use basic encryption.")
 
-    # Domain Age Check
     age = get_domain_age(domain)
     results["age_days"] = age
     if age is not None and age < 30:
@@ -153,16 +147,13 @@ def analyze_threat(raw_url):
         results["score"] -= 10
         results["flags"].append("❓ **Hidden WHOIS:** Could not verify the creation date of this website.")
 
-    # VirusTotal Checks
     vt_flags, vt_msg = get_vt_report(final_url)
     results["vt_malicious"] = vt_flags
     if vt_flags > 0:
         results["score"] -= (vt_flags * 15)
         results["flags"].append(f"🚨 **Malware Alert:** {vt_flags} security engines flagged this URL.")
-    elif "API Key missing" in str(vt_msg):
-        results["flags"].append("🔌 **System Warning:** VirusTotal Database is disconnected (Missing API Key).")
 
-    results["score"] = max(0, results["score"])
+    results["score"] = max(0, min(100, results["score"]))
     return results
 
 # --- 3. DASHBOARD UI ---
@@ -170,13 +161,9 @@ st.markdown("### 🔍 Start URL Inspection")
 target_url = st.text_input("Enter target URL for security scanning:", "https://")
 
 if st.button("Initialize Deep Scan", type="primary"):
-    
-    # Parse the URL to ensure it actually has a proper domain structure
     parsed_url = urllib.parse.urlparse(target_url)
     
-    # Check if it starts with http/https AND has a valid domain
     if not target_url.startswith("http") or not parsed_url.netloc:
-        # User typed an invalid link (NO Telegram ID shown here)
         st.error("The link is invalid.")
     else:
         with st.spinner("Querying global threat intelligence databases..."):
@@ -185,8 +172,6 @@ if st.button("Initialize Deep Scan", type="primary"):
                 score = report["score"]
     
                 st.divider()
-                
-                # Top Section
                 col_chart, col_metrics = st.columns([1.5, 2])
                 
                 with col_chart:
@@ -194,16 +179,8 @@ if st.button("Initialize Deep Scan", type="primary"):
                     fig = go.Figure(go.Indicator(
                         mode="gauge+number",
                         value=score,
-                        title={'text': "Calculated Safety Score", 'font': {'size': 24}},
-                        gauge={
-                            'axis': {'range': [0, 100]},
-                            'bar': {'color': gauge_color},
-                            'steps': [
-                                {'range': [0, 49], 'color': "#ffe6e6"},
-                                {'range': [50, 79], 'color': "#fff3cd"},
-                                {'range': [80, 100], 'color': "#e2f0e5"}
-                            ]
-                        }
+                        title={'text': "Safety Score", 'font': {'size': 24}},
+                        gauge={'axis': {'range': [0, 100]}, 'bar': {'color': gauge_color}}
                     ))
                     fig.update_layout(height=280, margin=dict(l=20, r=20, t=40, b=20))
                     st.plotly_chart(fig, use_container_width=True)
@@ -211,36 +188,23 @@ if st.button("Initialize Deep Scan", type="primary"):
                 with col_metrics:
                     st.markdown("### Executive Summary")
                     if score >= 80:
-                        st.success("✅ **STATUS: SECURE** - No critical threats detected.")
+                        st.success("✅ **STATUS: SECURE**")
                     elif score >= 50:
-                        st.warning("⚠️ **STATUS: SUSPICIOUS** - Proceed with caution.")
+                        st.warning("⚠️ **STATUS: SUSPICIOUS**")
                     else:
-                        st.error("🛑 **STATUS: MALICIOUS** - High-risk indicators present.")
+                        st.error("🛑 **STATUS: MALICIOUS**")
                     
                     m1, m2, m3 = st.columns(3)
-                    m1.metric("VirusTotal Hits", f"{report['vt_malicious']} Flags")
-                    m2.metric("Domain Age", f"{report['age_days']} Days" if report['age_days'] else "Unknown")
-                    m3.metric("Encryption", "Valid SSL 🔒" if report['ssl_valid'] else "Invalid 🔓")
+                    m1.metric("VT Flags", f"{report['vt_malicious']}")
+                    m2.metric("Domain Age", f"{report['age_days']}d" if report['age_days'] else "N/A")
+                    m3.metric("SSL Status", "Secure 🔒" if report['ssl_valid'] else "Insecure 🔓")
     
-                # Middle Section: Findings
-                st.subheader("🚩 Threat Indicators Found (The Red Flags)")
+                st.subheader("🚩 Threat Indicators")
                 if report["flags"]:
                     for flag in report["flags"]:
-                        if "🚨" in flag or "🔓" in flag or "🛑" in flag:
-                            st.error(flag) 
-                        elif "🔌" in flag:
-                            st.info(flag)
-                        else:
-                            st.warning(flag)
+                        st.write(flag)
                 else:
-                    st.info("✨ Clean: Zero threat indicators detected during scan.")
-    
-                # Bottom Section: Raw Data
-                with st.expander("🔬 View Raw Forensic Data"):
-                    st.write(f"**Target URL:** `{target_url}`")
-                    st.write(f"**Resolved Destination:** `{report['final_url']}`")
-                    st.write(f"**Root Domain:** `{report['domain']}`")
+                    st.info("✨ Clean: No structural threats detected.")
                     
-            except Exception as e:
-                # Custom Error Message if the scan crashes for an actual system error
+            except Exception:
                 st.error("There Is An Error, Please Contact us. Telegram ID: @shim_azu64")
