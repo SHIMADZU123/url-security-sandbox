@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import urllib.parse
 import re
 
-# --- 1. CORE FORENSIC ENGINE (PRO LOGIC) ---
+# --- 1. CORE FORENSIC ENGINE (SMART PATH LOGIC) ---
 def deep_forensic_analysis(url):
     score = 100
     red_flags = []
@@ -15,7 +15,7 @@ def deep_forensic_analysis(url):
     domain = parsed.netloc.lower()
     path = parsed.path.lower()
 
-    # SMART FILE DETECTION: Only flags downloads, not domain names
+    # SMART FILE DETECTION: Only flags downloads, ignores safe domains like google.com
     payload_exts = ('.exe', '.com', '.scr', '.bin', '.dll', '.zip', '.msi')
     if path.endswith(payload_exts) or "eicar" in url.lower():
         score -= 90
@@ -25,12 +25,12 @@ def deep_forensic_analysis(url):
     blacklist = ['phishing', 'testsafebrowsing', 'verify', 'secure-update', 'login-check']
     if any(p in url.lower() for p in blacklist):
         score -= 85
-        red_flags.append(("CRITICAL", "Social Engineering Vector: Path contains high-confidence phishing keywords used in credential harvesting."))
+        red_flags.append(("CRITICAL", "Social Engineering Vector: Path contains keywords used in high-confidence credential harvesting."))
 
     # INFRASTRUCTURE ANOMALIES
     if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", domain):
         score -= 50
-        red_flags.append(("HIGH", "Non-DNS Routing: Connection bypasses standard DNS resolution. Typical for command-and-control (C2) servers."))
+        red_flags.append(("HIGH", "Non-DNS Routing: Connection bypasses standard DNS resolution. Typical for C2 infrastructure."))
 
     return max(0, score), red_flags
 
@@ -39,7 +39,6 @@ st.set_page_config(page_title="Forensic AI | Cybersecurity Engineering", page_ic
 
 st.markdown("""
     <style>
-    /* Dark Industry Theme */
     .stApp {
         background-color: #05070a;
         background-image: radial-gradient(circle at 2px 2px, #161b22 1px, transparent 0);
@@ -51,7 +50,7 @@ st.markdown("""
     .hero-card {
         background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.95));
         backdrop-filter: blur(25px);
-        padding: 60px 40px;
+        padding: 40px 40px 60px 40px;
         border-radius: 35px;
         border: 1px solid rgba(48, 54, 61, 0.7);
         text-align: center;
@@ -87,20 +86,25 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER LAYOUT ---
+# --- HEADER LAYOUT (THE CHANGE IS HERE) ---
 c1, c2, c3 = st.columns([1, 4, 1])
 with c1:
     try: st.image("NTU logo.jpg", width=140)
     except: st.markdown("### 🏛️")
+
 with c2:
     st.markdown("""
         <div class="hero-card">
-            <h6 style="color: #58a6ff; letter-spacing: 5px; font-weight: 700; margin-bottom: 10px;">NORTHERN TECHNICAL UNIVERSITY</h6>
+            <p style="color: #58a6ff; font-weight: 800; letter-spacing: 2px; margin-bottom: 20px; font-size: 1rem;">
+                CYBERSECURITY ENGINEERING DEPARTMENT STUDENTS
+            </p>
+            <h6 style="color: #8b949e; letter-spacing: 5px; font-weight: 700; margin-bottom: 5px;">NORTHERN TECHNICAL UNIVERSITY</h6>
             <h1 style="color: #ffffff; font-size: 3.2rem; font-weight: 900; margin: 0;">AI THREAT INTELLIGENCE</h1>
             <div style="height: 4px; background: #1f6feb; width: 100px; margin: 25px auto; border-radius: 10px;"></div>
             <p style="color: #8b949e; font-size: 1.1rem; letter-spacing: 1px;">College of AI & Computer Engineering | Forensic Analysis Suite</p>
         </div>
     """, unsafe_allow_html=True)
+
 with c3:
     _, c3r = st.columns([1, 5])
     with c3r:
@@ -162,9 +166,9 @@ with s2:
         </div>
     """, unsafe_allow_html=True)
 
-# --- FINAL FOOTER (YOUR SPECIFIC TEXT) ---
+# --- FINAL CLEAN FOOTER ---
 st.markdown("""
-    <div style="margin-top: 50px; padding: 20px; border-top: 1px solid #30363d; text-align: center; color: #8b949e; font-size: 14px; letter-spacing: 1px;">
-        NORTHERN TECHNICAL UNIVERSITY | <b>CYBERSECURITY ENGINEERING DEPARTMENT STUDENTS</b> | v8.5-STABLE
+    <div style="margin-top: 50px; padding: 20px; border-top: 1px solid #30363d; text-align: center; color: #484f58; font-size: 13px;">
+        NORTHERN TECHNICAL UNIVERSITY | v8.6-STABLE | ENCRYPTED LINK
     </div>
 """, unsafe_allow_html=True)
