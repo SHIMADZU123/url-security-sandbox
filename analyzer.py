@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import urllib.parse
 import re
 
-# --- 1. CORE FORENSIC ENGINE (SMART LOGIC) ---
+# --- 1. CORE FORENSIC ENGINE ---
 def deep_forensic_analysis(url):
     score = 100
     red_flags = []
@@ -15,7 +15,7 @@ def deep_forensic_analysis(url):
     domain = parsed.netloc.lower()
     path = parsed.path.lower()
 
-    # SMART FILE DETECTION: Only flags .com/.exe if it is a FILE, not a domain
+    # SMART FILE DETECTION
     payload_exts = ('.exe', '.com', '.scr', '.bin', '.dll', '.zip', '.msi')
     if path.endswith(payload_exts) or "eicar" in url.lower():
         score -= 90
@@ -32,18 +32,13 @@ def deep_forensic_analysis(url):
         score -= 50
         red_flags.append(("HIGH", "Non-DNS Routing: Connection bypasses standard DNS resolution. Typical for command-and-control (C2) servers."))
 
-    if domain.startswith("xn--"):
-        score -= 60
-        red_flags.append(("CRITICAL", "Homograph Spoofing: Punycode characters detected. This is a visual deception technique mimicking legitimate brands."))
-
     return max(0, score), red_flags
 
 # --- 2. ELITE UI CONFIGURATION ---
-st.set_page_config(page_title="Forensic AI | NTU Console", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="Forensic AI | Cybersecurity Engineering", page_icon="🛡️", layout="wide")
 
 st.markdown("""
     <style>
-    /* Dark Industry Theme */
     .stApp {
         background-color: #05070a;
         background-image: radial-gradient(circle at 2px 2px, #161b22 1px, transparent 0);
@@ -63,17 +58,14 @@ st.markdown("""
         box-shadow: 0 30px 60px rgba(0,0,0,0.6);
     }
 
-    /* Forensic Flag Cards */
     .threat-card {
         background: rgba(248, 81, 73, 0.08);
         padding: 22px;
         border-radius: 15px;
         border-left: 6px solid #f85149;
         margin-bottom: 15px;
-        font-family: 'Inter', sans-serif;
     }
 
-    /* Custom Support Section */
     .support-box {
         background: rgba(48, 54, 61, 0.2);
         padding: 30px;
@@ -82,7 +74,6 @@ st.markdown("""
         margin-top: 50px;
     }
 
-    /* Enterprise Button */
     div.stButton > button {
         background: linear-gradient(180deg, #1f6feb 0%, #0969da 100%) !important;
         border: none !important;
@@ -91,16 +82,11 @@ st.markdown("""
         font-weight: 800 !important;
         width: 100% !important;
         letter-spacing: 2px;
-        transition: 0.3s ease;
-    }
-    div.stButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 25px rgba(31, 111, 235, 0.5);
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER LAYOUT (SYMMETRIC) ---
+# --- HEADER LAYOUT ---
 c1, c2, c3 = st.columns([1, 4, 1])
 with c1:
     try: st.image("NTU logo.jpg", width=140)
@@ -115,7 +101,6 @@ with c2:
         </div>
     """, unsafe_allow_html=True)
 with c3:
-    # Right alignment for college logo
     _, c3r = st.columns([1, 5])
     with c3r:
         try: st.image("collegue logo.jpg", width=140)
@@ -123,7 +108,7 @@ with c3:
 
 # --- CORE CONSOLE ---
 st.markdown("### 🔍 Forensic Target Acquisition")
-target_url = st.text_input("INPUT VECTOR (URL):", placeholder="https://external-target-analysis.com")
+target_url = st.text_input("INPUT VECTOR (URL):", placeholder="Analyze external URL signatures...")
 
 if st.button("EXECUTE SYSTEM SCAN"):
     if target_url:
@@ -149,10 +134,8 @@ if st.button("EXECUTE SYSTEM SCAN"):
 
             for sev, msg in flags:
                 st.markdown(f"<div class='threat-card'><strong>[{sev}]</strong> {msg}</div>", unsafe_allow_html=True)
-            if not flags:
-                st.info("No structural threat signatures identified.")
 
-# --- 3. SUPPORT & INFORMATION SECTION ---
+# --- UPDATED SUPPORT & STUDENT INFO SECTION ---
 st.write("---")
 s_col1, s_col2 = st.columns(2)
 
@@ -160,7 +143,7 @@ with s_col1:
     st.markdown("""
         <div class="support-box">
             <h3 style="color: #58a6ff; margin-top: 0;">🛠️ Technical Support</h3>
-            <p>If you encounter any issues with the forensic engine or require assistance with large-scale URL batch processing, please reach out to our support node.</p>
+            <p>Developed for the Cybersecurity Engineering Department. For technical inquiries or node status:</p>
             <p><strong>System ID:</strong> NTU-AI-64-STABLE</p>
             <p><strong>Telegram:</strong> <a href='https://t.me/shim_azu64' style='color:#58a6ff;'>@shim_azu64</a></p>
         </div>
@@ -169,16 +152,16 @@ with s_col1:
 with s_col2:
     st.markdown("""
         <div class="support-box">
-            <h3 style="color: #58a6ff; margin-top: 0;">📄 Documentation</h3>
-            <p>This system uses heuristic analysis and neural signature matching to identify phishing vectors and malware payloads in real-time.</p>
+            <h3 style="color: #58a6ff; margin-top: 0;">📍 Forensic Node</h3>
+            <p>Active monitoring and signature updates provided by the student department unit.</p>
             <p><strong>Last Database Sync:</strong> Feb 2026</p>
             <p><strong>Node Location:</strong> Kirkuk, Iraq</p>
         </div>
     """, unsafe_allow_html=True)
 
-# --- FINAL FOOTER ---
+# --- FINAL FOOTER (UPDATED AS REQUESTED) ---
 st.markdown("""
-    <div style="margin-top: 50px; padding: 20px; border-top: 1px solid #30363d; text-align: center; color: #484f58; font-size: 13px;">
-        NORTHERN TECHNICAL UNIVERSITY | COLLEGE OF AI & COMPUTER ENGINEERING | <b>DEVELOPER ID: @shim_azu64</b> | v8.0-ELITE
+    <div style="margin-top: 50px; padding: 20px; border-top: 1px solid #30363d; text-align: center; color: #8b949e; font-size: 14px; letter-spacing: 1px;">
+        NORTHERN TECHNICAL UNIVERSITY | <b>CYBERSECURITY ENGINEERING DEPARTMENT STUDENTS</b> | v8.2-ELITE
     </div>
 """, unsafe_allow_html=True)
