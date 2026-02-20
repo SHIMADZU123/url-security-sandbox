@@ -1,196 +1,93 @@
 import streamlit as st
 import requests
+import base64
 import whois
-import ssl
-import socket
-import urllib.parse
 from datetime import datetime
 import re
-import plotly.graph_objects as go
 
-# --- PAGE CONFIGURATION ---
-st.set_page_config(
-    page_title="NTU | AI Threat Intelligence",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# --- CONFIGURATION ---
+# Replace with your actual VirusTotal API Key
+VT_API_KEY = "YOUR_VIRUSTOTAL_API_KEY_HERE"
 
-# --- ADVANCED CSS FOR HIGH-END "ENTERPRISE" VIBE ---
-st.markdown("""
-    <style>
-    /* Dark Cyber Theme Background */
-    .stApp {
-        background: radial-gradient(circle at 50% 50%, #0d1b2a 0%, #010409 100%);
-        color: #e6edf3;
-    }
-    
-    /* Modern Glassmorphic Header */
-    .main-header {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(12px);
-        border-radius: 24px;
-        padding: 40px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-        text-align: center;
-        margin-bottom: 40px;
-    }
+def get_url_id(url):
+    return base64.urlsafe_b64encode(url.encode()).decode().strip("=")
 
-    /* Gradient Text for Headlines */
-    .gradient-text {
-        background: linear-gradient(90deg, #58a6ff, #bc8cff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 800;
-        letter-spacing: -1px;
-    }
-
-    /* Cyber Button Styling */
-    div.stButton > button {
-        background: linear-gradient(90deg, #1f6feb, #388bfd) !important;
-        color: white !important;
-        border: none !important;
-        padding: 15px 30px !important;
-        font-weight: bold !important;
-        border-radius: 12px !important;
-        box-shadow: 0 0 15px rgba(31, 111, 235, 0.4) !important;
-        transition: 0.3s all ease !important;
-    }
-    
-    div.stButton > button:hover {
-        box-shadow: 0 0 25px rgba(31, 111, 235, 0.8) !important;
-        transform: translateY(-2px);
-    }
-
-    /* Fixed Contact Footer */
-    .pro-footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: rgba(1, 4, 9, 0.9);
-        border-top: 1px solid #30363d;
-        padding: 15px;
-        text-align: center;
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 12px;
-        color: #8b949e;
-        z-index: 999;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- PROFESSIONAL HEADER LAYOUT ---
-with st.container():
-    col1, col2, col3 = st.columns([1, 4, 1])
-    
-    with col1:
-        try:
-            st.image("NTU logo.jpg", width=120)
-        except:
-            st.markdown("🏛️ **NTU**")
-            
-    with col2:
-        st.markdown("""
-            <div class="main-header">
-                <h1 class="gradient-text" style='font-size: 3rem; margin-bottom: 0;'>Welcome to the AI Threat Intelligence</h1>
-                <h3 style='color: #8b949e; font-weight: 400; margin-top: 10px;'>Northern Technical University</h3>
-                <p style='color: #58a6ff; font-size: 1rem; letter-spacing: 2px;'>AI & COMPUTER ENGINEERING COLLEGE | CYBER-THREAT V3.0 STABLE</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-    with col3:
-        try:
-            st.image("collegue logo.jpg", width=120)
-        except:
-            st.markdown("<div style='text-align: right;'>💻 **AI&CE**</div>", unsafe_allow_html=True)
-
-# --- CORE ANALYSIS ENGINE ---
-def deep_scan_engine(url):
+def analyze_link(url):
     score = 100
-    risk_factors = []
+    reports = []
     
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
-    domain = urllib.parse.urlparse(url).netloc
+    # 1. VirusTotal Reputation Check (Weight: Critical)
+    url_id = get_url_id(url)
+    vt_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
+    headers = {"x-apikey": VT_API_KEY}
     
-    # 1. Structural Checks
-    if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", domain):
-        score -= 45
-        risk_factors.append(("CRITICAL", "IP Domain masking detected. Standard DNS bypassed."))
-    
-    if "@" in url:
-        score -= 30
-        risk_factors.append(("HIGH", "User credential redirection injection detected."))
+    try:
+        response = requests.get(vt_url, headers=headers)
+        if response.status_code == 200:
+            vt_data = response.json()['data']['attributes']['last_analysis_stats']
+            malicious = vt_data.get('malicious', 0)
+            if malicious > 0:
+                score -= (malicious * 20) # Heavy penalty for each engine flag
+                reports.append(f"🚨 {malicious} Security Engines flagged this as Malicious.")
+    except:
+        reports.append("⚠️ Could not reach Reputation Database.")
+
+    # 2. Domain Age Check (Weight: High)
+    try:
+        domain_info = whois.whois(url)
+        creation_date = domain_info.creation_date
+        if isinstance(creation_date, list): creation_date = creation_date[0]
         
-    if domain.count('.') > 3:
-        score -= 20
-        risk_factors.append(("MEDIUM", "Excessive subdomain layering typical of phishing architecture."))
+        if creation_date:
+            age_days = (datetime.now() - creation_date).days
+            if age_days < 30:
+                score -= 40
+                reports.append(f"⚠️ Domain is very new ({age_days} days old). High risk of Phishing.")
+            else:
+                reports.append(f"✅ Domain has established history ({age_days} days).")
+    except:
+        reports.append("❓ Domain registration details are hidden or unavailable.")
 
-    if not url.startswith("https"):
-        score -= 35
-        risk_factors.append(("HIGH", "Unencrypted protocol (HTTP). Potential MITM vulnerability."))
+    # 3. Heuristic Check (Weight: Medium)
+    # Check for too many subdomains or suspicious keywords
+    suspicious_keywords = ['login', 'verify', 'update', 'banking', 'secure']
+    if any(keyword in url.lower() for keyword in suspicious_keywords):
+        score -= 15
+        reports.append("🔍 URL contains sensitive keywords often used in scams.")
 
-    return max(0, score), risk_factors
+    # Final score clamping (0-100)
+    final_score = max(0, min(score, 100))
+    return final_score, reports
 
-# --- MAIN INTERFACE ---
-st.markdown("### 🖥️ Security Command Center")
-target_url = st.text_input("INPUT TARGET URL FOR REAL-TIME FORENSICS:", placeholder="https://external-threat-target.net")
+# --- STREAMLIT UI ---
+st.set_page_config(page_title="Security Command Center", layout="wide")
+st.title("🖥️ Security Command Center")
+st.markdown("### INPUT TARGET URL FOR REAL-TIME FORENSICS:")
+
+target_url = st.text_input("Enter URL", placeholder="https://example.com")
 
 if st.button("EXECUTE DEEP SYSTEM SCAN"):
     if target_url:
-        with st.spinner("📡 Interrogating global threat databases..."):
-            score, factors = deep_scan_engine(target_url)
+        # Clean the URL (Fixing the double https:// issue)
+        clean_url = target_url.strip().replace("https://https://", "https://")
+        
+        with st.spinner("Performing Multi-Layered Analysis..."):
+            safety_score, intelligence_report = analyze_link(clean_url)
             
-            st.divider()
-            l_col, r_col = st.columns([1.5, 2])
+            # Display Gauge Logic
+            # Note: You should plug 'safety_score' into your Plotly Gauge Chart code here
+            st.write(f"## Final Safety Score: {safety_score}%")
             
-            with l_col:
-                # PREMIUM PLOTLY GAUGE
-                gauge_color = "#238636" if score > 75 else "#d29922" if score > 45 else "#da3633"
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=score,
-                    number={'suffix': "%", 'font': {'size': 80, 'color': gauge_color}},
-                    gauge={
-                        'axis': {'range': [0, 100], 'tickcolor': "#8b949e"},
-                        'bar': {'color': gauge_color},
-                        'bgcolor': "#0d1117",
-                        'borderwidth': 2,
-                        'bordercolor': "#30363d",
-                        'steps': [
-                            {'range': [0, 45], 'color': "rgba(218, 54, 51, 0.1)"},
-                            {'range': [45, 75], 'color': "rgba(210, 153, 34, 0.1)"},
-                            {'range': [75, 100], 'color': "rgba(35, 134, 54, 0.1)"}
-                        ],
-                    }
-                ))
-                fig.update_layout(height=400, paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"})
-                st.plotly_chart(fig, use_container_width=True)
-
-            with r_col:
-                st.markdown("### 🔍 Threat Intelligence Report")
-                if score > 75:
-                    st.success(f"🛡️ **THREAT LEVEL: LOW** | Confidence: 94%")
-                elif score > 45:
-                    st.warning(f"⚠️ **THREAT LEVEL: ELEVATED** | Potential Phishing Vectors Detected")
-                else:
-                    st.error(f"🛑 **THREAT LEVEL: CRITICAL** | Malicious Signature Identified")
-
-                for level, msg in factors:
-                    st.markdown(f"**[{level}]** {msg}")
+            # Display Intelligence Report
+            with st.expander("🔍 View Threat Intelligence Report", expanded=True):
+                for item in intelligence_report:
+                    st.write(item)
                 
-                if not factors:
-                    st.info("No immediate heuristic anomalies detected in URL structure.")
+                if safety_score < 50:
+                    st.error("VERDICT: HIGH THREAT DETECTED. DO NOT PROCEED.")
+                elif safety_score < 80:
+                    st.warning("VERDICT: SUSPICIOUS ACTIVITY. PROCEED WITH CAUTION.")
+                else:
+                    st.success("VERDICT: LINK APPEARS CLEAN.")
     else:
-        st.error("SYSTEM ERROR: No target provided for scan.")
-
-# --- PROFESSIONAL FOOTER ---
-st.markdown(f"""
-    <div class="pro-footer">
-        NORTHERN TECHNICAL UNIVERSITY | AI & COMPUTER ENGINEERING | 
-        <span style="color: #58a6ff;">SUPPORT: @shim_azu64</span> | 
-        SECURE NODE: {socket.gethostname().upper()}
-    </div>
-    """, unsafe_allow_html=True)
+        st.error("Please provide a valid URL.")
