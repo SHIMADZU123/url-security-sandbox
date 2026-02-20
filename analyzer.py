@@ -27,6 +27,12 @@ with st.sidebar:
 NTU_LOGO_URL = "blob:https://gemini.google.com/c7fde64c-4f15-47c5-9d5a-d5db9a28c12d"
 AI_LOGO_URL = "blob:https://gemini.google.com/f7bb8681-8d82-4773-957d-72abc6748727" # Guaranteed public icon server
 
+with head_col1:
+    st.image("NTU logo.jog", use_container_width=True)
+
+with head_col1:
+    st.image("collegue logo.jog", use_container_width=True)
+    
 head_col1, head_col2, head_col3 = st.columns([1, 3, 1])
 
 with head_col1:
