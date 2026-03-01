@@ -8,126 +8,98 @@ import plotly.graph_objects as go
 from fpdf import FPDF
 from datetime import datetime
 from tldextract import extract
+from bs4 import BeautifulSoup
 
-# --- [1. DESIGN SYSTEM] ---
-st.set_page_config(page_title="VORTEX PHANTOM", layout="wide", page_icon="🛡️")
+# --- [1. DESIGN: THE GHOST ARCHITECTURE] ---
+st.set_page_config(page_title="VORTEX // GHOST-OS", layout="wide", page_icon="💀")
 
 st.markdown("""
     <style>
-    .stApp { background: #020408; color: #d0d7de; }
-    .stMetric { background: #0d1117; border: 1px solid #238636; border-radius: 8px; padding: 10px; }
-    .header-badge { background: #1f6feb; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8em; }
-    .glow-alert { border: 1px solid #f85149; box-shadow: 0 0 15px rgba(248, 81, 73, 0.3); padding: 15px; border-radius: 10px; }
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;400&display=swap');
+    * { font-family: 'JetBrains Mono', monospace; }
+    .stApp { background: #000000; color: #00ff41; } /* Matrix Green on Black */
+    .stMetric { border-left: 3px solid #00ff41; background: rgba(0,255,65,0.05); padding: 10px; }
+    .terminal-card { border: 1px solid #333; padding: 20px; border-radius: 0px; background: #050505; }
+    .scan-line { width: 100%; height: 2px; background: #00ff41; position: absolute; opacity: 0.3; animation: scan 3s infinite; }
+    @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
     </style>
     """, unsafe_allow_html=True)
 
-# --- [2. CORE INTELLIGENCE UNITS] ---
-
-def get_security_headers(url):
+# --- [2. UNIQUE LOGIC: STRUCTURAL DNA] ---
+def analyze_structural_dna(url):
     try:
-        response = requests.get(url, timeout=5)
-        headers = response.headers
-        checks = {
-            "HSTS": "Strict-Transport-Security" in headers,
-            "XSS Protection": "X-XSS-Protection" in headers,
-            "Frame Protection": "X-Frame-Options" in headers
-        }
-        return checks
-    except: return None
+        res = requests.get(url, timeout=5)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        links = soup.find_all('a', href=True)
+        total_links = len(links)
+        if total_links == 0: return 0
+        
+        # Calculate how many links point AWAY from the domain
+        # High external link ratio = likely a hasty clone
+        ext_links = [l['href'] for l in links if "http" in l['href'] and extract(url).domain not in l['href']]
+        return (len(ext_links) / total_links) * 100
+    except: return 0
 
-def check_spoofing(url):
-    brands = ["microsoft", "google", "amazon", "apple", "facebook", "paypal", "netflix", "bankofamerica"]
-    domain = extract(url).domain.lower()
-    if domain in brands: return None
-    for b in brands:
-        if 1 <= Levenshtein.distance(domain, b) <= 2: return b
-    return None
+# --- [3. UNIQUE LOGIC: HEURISTIC AI SCORE] ---
+def calculate_phantom_score(risk, age, dna):
+    score = 0
+    if risk > 10: score += 40
+    if isinstance(age, int) and age < 60: score += 30
+    if dna > 50: score += 30  # High external link ratio
+    return min(score, 100)
 
-def fetch_vt(url, key):
-    url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
-    res = requests.get(f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": key})
-    return res.json() if res.status_code == 200 else None
-
-# --- [3. PDF ENGINE (STABLE)] ---
-class PhantomReport(FPDF):
-    def header(self):
-        self.set_font("helvetica", "B", 20); self.set_text_color(31, 111, 235)
-        self.cell(0, 10, "PHANTOM INTEL REPORT", ln=True, align="C"); self.ln(10)
-
-def generate_pdf(url, risk, stats, age):
-    pdf = PhantomReport()
-    pdf.add_page(); pdf.set_font("helvetica", size=12)
-    pdf.cell(0, 10, f"Target: {url}", ln=True)
-    pdf.cell(0, 10, f"Risk Score: {risk:.2f}%", ln=True)
-    pdf.cell(0, 10, f"Domain Age: {age} Days", ln=True)
-    pdf.ln(10); pdf.set_font("helvetica", "B", 14); pdf.cell(0, 10, "Detection Details:", ln=True)
-    for k, v in stats.items(): pdf.cell(0, 8, f"- {k}: {v}", ln=True)
-    return pdf.output()
-
-# --- [4. MAIN INTERFACE] ---
-st.markdown("<h1>🛡️ VORTEX <span style='color:#1f6feb'>PHANTOM</span></h1>", unsafe_allow_html=True)
-st.markdown("<span class='header-badge'>VERSION 2026.4</span>", unsafe_allow_html=True)
+# --- [4. CORE SYSTEM] ---
+st.markdown("<h1 style='letter-spacing: -2px;'>VORTEX // <span style='color:white;'>GHOST.OS</span></h1>", unsafe_allow_html=True)
+st.caption("TACTICAL URL DECONSTRUCTION // KERNEL VER: 9.2.0-STABLE")
 
 API_KEY = st.secrets.get("VT_API_KEY")
-if not API_KEY:
-    st.error("🔑 API KEY MISSING: Add VT_API_KEY to Secrets.")
-    st.stop()
 
-target = st.text_input("📡 TARGET OSCILLATION (URL):", placeholder="https://")
+target = st.text_input(">> [ENTER_TARGET_STRING]:", placeholder="TERMINAL_CMD://INPUT_URL")
 
-if st.button("⚡ EXECUTE NEURAL BYPASS") and target:
-    with st.status("Analyzing Site DNA...", expanded=True) as status:
-        # Step 1: Brand Similarity
-        spoof = check_spoofing(target)
+if st.button("EXECUTE_DECONSTRUCTION") and target:
+    with st.empty():
+        for percent in range(0, 101, 10):
+            st.write(f"📂 ACCESSING_MEMORY_BLOCK_{percent}%...")
+            time.sleep(0.1)
+    
+    # Data Gathering
+    url_id = base64.urlsafe_b64encode(target.encode()).decode().strip("=")
+    vt_res = requests.get(f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": API_KEY})
+    
+    dna_risk = analyze_structural_dna(target)
+    
+    try:
+        w = whois.whois(extract(target).registered_domain)
+        creation = w.creation_date[0] if isinstance(w.creation_date, list) else w.creation_date
+        age = (datetime.now() - creation).days
+    except: age = "UNKNOWN"
+
+    # Phantom Analysis
+    if vt_res.status_code == 200:
+        vt_stats = vt_res.json()['data']['attributes']['last_analysis_stats']
+        base_risk = (vt_stats['malicious'] / sum(vt_stats.values())) * 100
+        phantom_score = calculate_phantom_score(base_risk, age, dna_risk)
+
+        # --- UNIQUE UI: THE PHANTOM HUD ---
+        col_hud, col_recon = st.columns([2, 1])
         
-        # Step 2: Security Headers
-        headers = get_security_headers(target)
-        
-        # Step 3: Global Threat Intel
-        vt_data = fetch_vt(target, API_KEY)
-        
-        # Step 4: Domain Age
-        try:
-            domain_info = whois.whois(extract(target).registered_domain)
-            creation = domain_info.creation_date[0] if isinstance(domain_info.creation_date, list) else domain_info.creation_date
-            age_days = (datetime.now() - creation).days
-        except: age_days = "Unknown"
-        
-        status.update(label="ANALYSIS COMPLETE", state="complete")
+        with col_hud:
+            st.markdown("<div class='terminal-card'>", unsafe_allow_html=True)
+            st.write(f"### [ SYSTEM_VERDICT: {'CRITICAL' if phantom_score > 50 else 'STABLE'} ]")
+            
+            # Custom Gauge
+            fig = go.Figure(go.Pie(labels=['RISK', 'SAFE'], values=[phantom_score, 100-phantom_score], hole=.8, marker_colors=['#ff0000', '#111']))
+            fig.update_layout(showlegend=False, height=200, margin=dict(t=0,b=0), paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            st.write(f"**DOMAIN_AGE:** {age} DAYS")
+            st.write(f"**STRUCTURAL_DNA_RISK:** {dna_risk:.1f}%")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- RESULTS DISPLAY ---
-    if vt_data:
-        stats = vt_data['data']['attributes']['last_analysis_stats']
-        risk = (stats['malicious'] / sum(stats.values())) * 100 if sum(stats.values()) > 0 else 0
-
-        # Brand Alert
-        if spoof:
-            st.markdown(f"<div class='glow-alert'>🚨 <b>CRITICAL:</b> This URL is a lookalike of <b>{spoof.upper()}</b>!</div>", unsafe_allow_html=True)
-
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col1:
-            st.metric("Risk Level", f"{risk:.1f}%")
-            # PDF Report Fix
-            pdf_bytes = generate_pdf(target, risk, stats, age_days)
-            st.download_button("📥 DOWNLOAD INTEL", data=bytes(pdf_bytes), file_name="intel_report.pdf")
-        
-        with col2:
-            st.metric("Domain Age", f"{age_days} Days")
-            if str(age_days).isdigit() and int(age_days) < 90: st.warning("Extreme Risk: Domain is brand new.")
-
-        with col3:
-            st.markdown("<b>Security Headers:</b>", unsafe_allow_html=True)
-            if headers:
-                for h, active in headers.items():
-                    st.write(f"{'✅' if active else '❌'} {h}")
-
+        with col_recon:
+            st.markdown("### [ VISUAL_RECON ]")
+            st.image(f"https://s0.wp.com/mshots/v1/{target}?w=400", use_container_width=True)
+            
         st.divider()
-        
-        # Favicon + Visual Preview
-        c_icon, c_preview = st.columns([1, 4])
-        with c_icon:
-            st.markdown("### 🧬 Favicon")
-            st.image(f"https://www.google.com/s2/favicons?domain={target}&sz=64")
-        with c_preview:
-            st.markdown("### 🖼️ Visual Recon")
-            st.image(f"https://s0.wp.com/mshots/v1/{target}?w=800")
+        st.write("### [ RAW_TELEMETRY_STREAM ]")
+        st.json(vt_stats)
