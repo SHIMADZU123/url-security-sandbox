@@ -6,3 +6,4 @@ tldextract
 python-whois
 plotly
 fpdf2
+python-Levenshtein
