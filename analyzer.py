@@ -1,8 +1,7 @@
-```python
 # app.py
 """
-LinkTrust Pro — compact URL risk scorer with percentage and polished UI.
-Save as app.py and run with: streamlit run app.py
+LinkTrust Pro — percentage risk scorer with a polished UI.
+Run: streamlit run app.py
 """
 
 import os
@@ -24,9 +23,7 @@ try:
 except Exception:
     WHOIS_AVAILABLE = False
 
-# -------------------------
 # Page config and styling
-# -------------------------
 st.set_page_config(page_title="LinkTrust Pro", page_icon="🔒", layout="centered")
 
 CSS = """
@@ -67,9 +64,7 @@ st.markdown(
 )
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-# -------------------------
 # Heuristics and scoring
-# -------------------------
 SUSPICIOUS_PATTERNS = [
     r"login\.", r"signin", r"verify", r"confirm", r"account", r"update", r"secure",
     r"free-?gift", r"\.zip$", r"\.exe$", r"download", r"pay", r"invoice", r"bank",
@@ -111,7 +106,7 @@ def score_url(raw_url: str, vt_score: float = None) -> dict:
     breakdown = []
     score = 0.0
 
-    # 1. Format validity (weight 15)
+    # 1. Format validity
     if not raw:
         breakdown.append(("Empty URL", 10, 10))
         score += 10
@@ -126,36 +121,36 @@ def score_url(raw_url: str, vt_score: float = None) -> dict:
     parsed = urlparse(raw)
     host = (parsed.hostname or "").lower()
 
-    # 2. Blocklist (weight 30)
+    # 2. Blocklist
     if any(b in host for b in BLOCKLIST_DOMAINS):
         breakdown.append(("Known blocklist", 30, 30))
         score += 30
 
-    # 3. IP address in host (weight 20)
+    # 3. IP address in host
     if is_ip_address(host):
         breakdown.append(("IP address used", 20, 20))
         score += 20
 
-    # 4. Suspicious keywords (weight 18)
+    # 4. Suspicious keywords
     for pat in SUSPICIOUS_PATTERNS:
         if re.search(pat, raw, flags=re.I):
             breakdown.append(("Suspicious keyword", 18, 18))
             score += 18
             break
 
-    # 5. Hostname entropy / length (weight 12)
+    # 5. Hostname entropy / length
     ent = hostname_entropy(host)
     if ent > 3.5 or len(host) > 50:
         contrib = 12
         breakdown.append(("High entropy/long host", 12, contrib))
         score += contrib
 
-    # 6. DNS resolution (weight 8)
+    # 6. DNS resolution
     if not dns_resolves(host):
         breakdown.append(("DNS does not resolve", 8, 8))
         score += 8
 
-    # 7. Reachability & HTTP status (weight 20)
+    # 7. Reachability & HTTP status
     try:
         headers = {"User-Agent": "LinkTrustPro/1.0"}
         resp = requests.get(raw, headers=headers, timeout=6, allow_redirects=True, verify=True)
@@ -179,7 +174,7 @@ def score_url(raw_url: str, vt_score: float = None) -> dict:
         breakdown.append(("Network error", 10, 10))
         score += 10
 
-    # 8. Optional WHOIS age (weight -8 for old domains)
+    # 8. Optional WHOIS age (reduce risk for older domains)
     if WHOIS_AVAILABLE and host:
         try:
             w = whois_lib.whois(host)
@@ -202,9 +197,7 @@ def score_url(raw_url: str, vt_score: float = None) -> dict:
 
     return finalize(score, breakdown)
 
-# -------------------------
 # UI and interactions
-# -------------------------
 st.markdown("<div class='small'>Paste a link and get a percentage risk score with a short explanation.</div>", unsafe_allow_html=True)
 st.write("")
 
@@ -274,4 +267,3 @@ else:
 
 st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("<div class='footer'>LinkTrust Pro performs passive checks only. For critical decisions use a dedicated sandbox or threat intelligence service.</div>", unsafe_allow_html=True)
-```
