@@ -2,7 +2,9 @@ import streamlit as st
 import requests
 import base64
 import whois
+import time
 import plotly.graph_objects as go
+from fpdf import FPDF
 from datetime import datetime
 from tldextract import extract
 
@@ -11,114 +13,126 @@ st.set_page_config(page_title="VORTEX SENTINEL | NEXUS-7", layout="wide")
 
 st.markdown("""
     <style>
-    /* Global Neon Aesthetics */
     .stApp { background: #05070a; color: #e0e0e0; }
-    .stMetric { background: #0d1117; border: 1px solid #1f6feb; border-radius: 10px; box-shadow: 0 0 15px rgba(31, 111, 235, 0.2); }
-    .stButton>button { background: linear-gradient(45deg, #1f6feb, #8957e5); border: none; color: white; font-weight: bold; width: 100%; height: 3em; }
-    .stButton>button:hover { box-shadow: 0 0 20px #58a6ff; }
-    .report-card { background: rgba(13, 17, 23, 0.8); padding: 25px; border-radius: 15px; border: 1px solid #30363d; margin-top: 20px; }
-    .glow-red { color: #ff7b72; text-shadow: 0 0 10px #f85149; }
-    .glow-green { color: #3fb950; text-shadow: 0 0 10px #238636; }
+    .stMetric { background: #0d1117; border: 1px solid #1f6feb; border-radius: 10px; }
+    .report-card { background: rgba(13, 17, 23, 0.8); padding: 25px; border-radius: 15px; border: 1px solid #30363d; }
+    .glow-text { color: #58a6ff; text-shadow: 0 0 10px rgba(88, 166, 255, 0.5); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- [INTELLIGENCE FUNCTIONS] ---
+# --- [PDF ENGINE] ---
+class ThreatReport(FPDF):
+    def header(self):
+        self.set_font("helvetica", "B", 20)
+        self.set_text_color(31, 111, 235)
+        self.cell(0, 10, "VORTEX SENTINEL: INTELLIGENCE REPORT", ln=True, align="C")
+        self.ln(10)
 
-def get_domain_age(domain):
-    try:
-        w = whois.whois(domain)
-        creation_date = w.creation_date
-        if isinstance(creation_date, list): creation_date = creation_date[0]
-        age_days = (datetime.now() - creation_date).days
-        return age_days, creation_date.strftime('%Y-%m-%d')
-    except:
-        return None, "Unknown"
+def generate_pdf(url, risk, stats, age, creation):
+    pdf = ThreatReport()
+    pdf.add_page()
+    pdf.set_font("helvetica", size=12)
+    
+    # Report Meta
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 10, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+    pdf.ln(5)
+    
+    # Executive Summary
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("helvetica", "B", 16)
+    pdf.cell(0, 10, f"Target: {url}", ln=True)
+    pdf.set_font("helvetica", size=12)
+    pdf.cell(0, 10, f"Risk Score: {risk:.2f}%", ln=True)
+    pdf.cell(0, 10, f"Domain Age: {age} days (Registered: {creation})", ln=True)
+    pdf.ln(10)
+    
+    # Engine Details
+    pdf.set_font("helvetica", "B", 14)
+    pdf.cell(0, 10, "Engine Detection Breakdown:", ln=True)
+    pdf.set_font("helvetica", size=12)
+    for key, val in stats.items():
+        pdf.cell(0, 10, f"- {key.capitalize()}: {val}", ln=True)
+    
+    return pdf.output()
 
-def fetch_vt_intelligence(url, api_key):
+# --- [SCAN LOGIC] ---
+def fetch_vt(url, key):
     url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
-    api_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
-    response = requests.get(api_url, headers={"x-apikey": api_key})
-    return response.json() if response.status_code == 200 else None
+    res = requests.get(f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": key})
+    return res.json() if res.status_code == 200 else None
 
-# --- [INTERFACE] ---
+# --- [MAIN INTERFACE] ---
 st.title("⚡ VORTEX SENTINEL")
-st.caption("Strategic URL Sandbox & Identity Verification Protocol // VER 7.0.0")
+st.markdown("<h3 class='glow-text'>NEXUS-7 Command Interface</h3>", unsafe_allow_html=True)
 
-# Secret check
 try:
     API_KEY = st.secrets["VT_API_KEY"]
 except:
-    st.warning("⚠️ SYSTEM OFFLINE: Link VirusTotal API in Streamlit Secrets to activate.")
+    st.error("🔑 SECURITY BREACH: VT_API_KEY missing in Secrets.")
     st.stop()
 
-# Tactical Input
-col_in, col_opt = st.columns([3, 1])
-with col_in:
-    target_url = st.text_input("📡 TARGET OSCILLATION (URL):", placeholder="https://secure-node-01.com")
-with col_opt:
-    scan_depth = st.selectbox("SCAN DEPTH", ["Standard", "Heuristic", "Omniscient"])
+target_url = st.text_input("📡 INSERT TARGET OSCILLATION (URL):")
 
 if st.button("EXECUTE NEURAL BYPASS SCAN") and target_url:
-    with st.status("Initializing Virtual Environment...", expanded=True) as status:
-        st.write("🛰️ Querying Global Threat Nodes...")
-        data = fetch_vt_intelligence(target_url, API_KEY)
-        
-        st.write("🕰️ Calculating Domain Chronology...")
-        ext = extract(target_url)
-        root_domain = f"{ext.domain}.{ext.suffix}"
-        age_days, create_date = get_domain_age(root_domain)
-        
-        status.update(label="ANALYSIS COMPLETE", state="complete")
+    # 1. THE NEURAL ANIMATION
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    stages = [
+        "Infiltrating Domain Layer...", 
+        "Bypassing SSL Handshake...", 
+        "Decrypting Threat Vectors...", 
+        "Finalizing Intelligence Synthesis..."
+    ]
+    
+    for i, stage in enumerate(stages):
+        status_text.text(f"SYSTEM: {stage}")
+        progress_bar.progress((i + 1) * 25)
+        time.sleep(0.6)
+    
+    # 2. DATA ACQUISITION
+    vt_data = fetch_vt(target_url, API_KEY)
+    ext = extract(target_url)
+    try:
+        w = whois.whois(f"{ext.domain}.{ext.suffix}")
+        creation = w.creation_date[0] if isinstance(w.creation_date, list) else w.creation_date
+        age = (datetime.now() - creation).days
+        create_str = creation.strftime('%Y-%m-%d')
+    except:
+        age, create_str = "Unknown", "Unknown"
 
-    # --- [GOD-MODE DASHBOARD] ---
-    if data:
-        attr = data['data']['attributes']
-        stats = attr['last_analysis_stats']
-        malicious = stats['malicious']
+    if vt_data:
+        stats = vt_data['data']['attributes']['last_analysis_stats']
+        risk = (stats['malicious'] / sum(stats.values())) * 100 if sum(stats.values()) > 0 else 0
         
-        # 1. THE BIG METRICS
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("THREAT VECTOR", f"{malicious} Engines", delta="CRITICAL" if malicious > 0 else "CLEAR", delta_color="inverse")
-        m2.metric("DOMAIN AGE", f"{age_days} Days" if age_days else "REDACTED")
-        m3.metric("CERTIFICATE", "Valid TLS 1.3" if target_url.startswith("https") else "INSECURE")
-        m4.metric("REPUTATION", "Verified" if age_days and age_days > 3650 else "High-Risk")
-
+        # --- DASHBOARD ---
         st.divider()
-
-        # 2. VISUAL RECON & ENGINE DATA
-        left, right = st.columns([1, 1.5])
+        col1, col2 = st.columns([1, 1])
         
-        with left:
-            st.markdown("### 🖼️ VISUAL RECONNAISSANCE")
-            # This simulates a secure screenshot preview
-            # In production, use an API like Screenshotlayer or Abstract API
-            st.image(f"https://s0.wp.com/mshots/v1/{target_url}?w=600", caption="Remote Sandbox View (Safe Render)")
-            
-            if age_days and age_days < 90:
-                st.error(f"🚩 DANGER: Domain created on {create_date}. Brand-new domains are 95% more likely to be malicious.")
-            else:
-                st.success(f"💎 ESTABLISHED: Domain registered in {create_date}.")
-
-        with right:
-            st.markdown("### 📊 ENGINE TELEMETRY")
-            # Risk Indicator
-            risk_val = (malicious / sum(stats.values())) * 100
+        with col1:
+            st.markdown("### 📊 RISK METRIC")
             fig = go.Figure(go.Indicator(
-                mode = "gauge+number",
-                value = risk_val,
-                gauge = {'axis': {'range': [0, 100]}, 'bar': {'color': "#1f6feb"}, 
-                         'steps': [{'range': [0, 10], 'color': "green"}, {'range': [10, 30], 'color': "yellow"}, {'range': [30, 100], 'color': "red"}]}
+                mode="gauge+number", value=risk,
+                gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#1f6feb"}}
             ))
-            fig.update_layout(height=200, margin=dict(t=0, b=0), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+            fig.update_layout(height=250, paper_bgcolor="rgba(0,0,0,0)", font={'color':"white"})
             st.plotly_chart(fig, use_container_width=True)
-            
-            with st.expander("SEE RAW LOGS"):
-                st.json(data)
 
-st.sidebar.markdown("""
-    ### 🛠️ SYSTEM MODULES
-    - [x] VirusTotal V3 Active
-    - [x] WHOIS Chronology Active
-    - [x] Screenshot Layer Active
-    - [ ] AI Traffic Simulation (Coming Soon)
-""")
+        with col2:
+            st.markdown("### 🧬 DOMAIN BIOMETRICS")
+            st.metric("CHRONOLOGY", f"{age} Days", delta="New Domain" if str(age).isdigit() and int(age) < 365 else None)
+            st.metric("MALICIOUS HITS", f"{stats['malicious']} Engines")
+            
+            # --- THE GOD-MODE REPORT BUTTON ---
+            pdf_bytes = generate_pdf(target_url, risk, stats, age, create_str)
+            st.download_button(
+                label="📥 DOWNLOAD INTEL REPORT (PDF)",
+                data=pdf_bytes,
+                file_name=f"VORTEX_REPORT_{int(time.time())}.pdf",
+                mime="application/pdf"
+            )
+
+        # 3. VISUAL RECON
+        st.markdown("### 🖼️ SECURE VISUAL PREVIEW")
+        st.image(f"https://s0.wp.com/mshots/v1/{target_url}?w=800", use_container_width=True)
