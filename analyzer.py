@@ -1,197 +1,353 @@
+# app.py
+import json
+import socket
+import ssl
+import datetime
+from urllib.parse import urlparse, urljoin
+
+import requests
+import validators
+import tldextract
+from bs4 import BeautifulSoup
+
 import streamlit as st
-import plotly.graph_objects as go
-import urllib.parse
-import re
 
-# --- 1. CORE FORENSIC ENGINE (WITH SHORT LINK & MALWARE DETECTION) ---
-def deep_forensic_analysis(url):
-    score = 100
-    red_flags = []
-    
-    # Standardize URL
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
-    
-    parsed = urllib.parse.urlparse(url)
-    domain = parsed.netloc.lower()
-    path = parsed.path.lower()
+# Optional whois
+try:
+    import whois as whois_lib
+    WHOIS_AVAILABLE = True
+except Exception:
+    WHOIS_AVAILABLE = False
 
-    # 🚨 SHORTENED LINK DETECTION (Neutralizing the 100% bug)
-    shortener_list = ['bit.ly', 'tinyurl.com', 't.co', 'rebrand.ly', 'is.gd', 'buff.ly', 'ow.ly']
-    if any(s in domain for s in shortener_list):
-        score -= 70
-        red_flags.append(("HIGH RISK", "URL Masking Detected: Shortened links hide the final destination, a common tactic for phishing."))
+# -------------------------
+# Styling for professional vibes
+# -------------------------
+st.set_page_config(page_title="URL SandBox Analyzer", page_icon="🧪", layout="wide")
 
-    # MALWARE PAYLOAD DETECTION
-    payload_exts = ('.exe', '.com', '.scr', '.bin', '.dll', '.zip', '.msi')
-    if path.endswith(payload_exts) or "eicar" in url.lower():
-        score -= 90
-        red_flags.append(("CRITICAL", "Malware Payload: System identified suspicious executable binary extensions in the target path."))
+CUSTOM_CSS = """
+<style>
+:root{
+  --bg:#0f1724;
+  --card:#0b1220;
+  --accent:#0ea5a4;
+  --muted:#94a3b8;
+  --glass: rgba(255,255,255,0.03);
+}
+body {
+  background: linear-gradient(180deg, #071029 0%, #071a2a 100%);
+  color: #e6eef8;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+.stApp > header { display: none; }
+.main .block-container { padding-top: 1rem; padding-left: 2rem; padding-right: 2rem; }
+.card {
+  background: var(--glass);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+}
+.kv {
+  display:flex;
+  justify-content:space-between;
+  gap: 12px;
+  align-items:center;
+  padding:8px 0;
+  border-bottom: 1px dashed rgba(255,255,255,0.02);
+}
+.kv:last-child { border-bottom: none; }
+.small { color: var(--muted); font-size: 13px; }
+.badge {
+  background: linear-gradient(90deg, rgba(14,165,164,0.12), rgba(14,165,164,0.06));
+  color: var(--accent);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight:600;
+  font-size:13px;
+}
+</style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-    # PHISHING & SOCIAL ENGINEERING HEURISTICS
-    phish_keywords = ['phishing', 'verify', 'login-check', 'secure-update', 'account-support']
-    if any(p in url.lower() for p in phish_keywords):
-        score -= 80
-        red_flags.append(("CRITICAL", "Social Engineering: High-confidence phishing keywords detected in URL structure."))
+# -------------------------
+# Utility functions
+# -------------------------
+def normalize_url(raw_url: str) -> str:
+    raw_url = raw_url.strip()
+    if not raw_url:
+        return ""
+    if not raw_url.startswith(("http://", "https://")):
+        raw_url = "http://" + raw_url
+    return raw_url
 
-    return max(0, score), red_flags
+def get_ssl_info(hostname: str, port: int = 443, timeout: int = 5):
+    try:
+        ctx = ssl.create_default_context()
+        with socket.create_connection((hostname, port), timeout=timeout) as sock:
+            with ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
+                cert = ssock.getpeercert()
+        issuer = dict(x[0] for x in cert.get("issuer", ()))
+        subject = dict(x[0] for x in cert.get("subject", ()))
+        not_before = datetime.datetime.strptime(cert['notBefore'], "%b %d %H:%M:%S %Y %Z")
+        not_after = datetime.datetime.strptime(cert['notAfter'], "%b %d %H:%M:%S %Y %Z")
+        return {
+            "subject_common_name": subject.get("commonName"),
+            "issuer_common_name": issuer.get("commonName"),
+            "not_before": not_before.isoformat(),
+            "not_after": not_after.isoformat(),
+            "serialNumber": cert.get("serialNumber"),
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
-# --- 2. ELITE UI CONFIGURATION ---
-st.set_page_config(page_title="Forensic AI | NTU", page_icon="🛡️", layout="wide")
-
-# Load Bootstrap Icons for professional "SOC" vibe
-st.markdown('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">', unsafe_allow_html=True)
-
-st.markdown("""
-    <style>
-    .stApp { background-color: #05070a; color: #e6edf3; }
-    
-    /* Hero Card Styling */
-    .hero-card {
-        background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.95));
-        padding: 40px; border-radius: 35px; border: 1px solid rgba(48, 54, 61, 0.7);
-        text-align: center; margin-bottom: 40px;
+def analyze_url(url: str, timeout: int = 12):
+    result = {
+        "url": url,
+        "normalized": None,
+        "valid": False,
+        "http": {},
+        "meta": {},
+        "links": {"internal": [], "external": []},
+        "forms": [],
+        "ssl": {},
+        "whois": None,
+        "error": None
     }
-    
-    /* Neural Terminal Styling */
-    .terminal-header {
-        display: flex; align-items: center; gap: 12px;
-        background: rgba(31, 111, 235, 0.1);
-        padding: 15px 25px; border-radius: 15px 15px 0 0;
-        border: 1px solid rgba(31, 111, 235, 0.3); border-bottom: none;
-    }
-    .terminal-title {
-        font-family: 'Courier New', monospace; font-weight: 800;
-        letter-spacing: 2px; color: #58a6ff; text-transform: uppercase;
-    }
-    .stTextInput input {
-        background-color: #0d1117 !important; border: 1px solid #30363d !important;
-        color: #58a6ff !important; font-family: 'Courier New', monospace !important;
-        border-radius: 0 0 15px 15px !important; padding: 20px !important;
-    }
-    .stTextInput input:focus { border-color: #58a6ff !important; box-shadow: 0 0 15px rgba(88, 166, 255, 0.2) !important; }
+    try:
+        normalized = normalize_url(url)
+        result["normalized"] = normalized
+        if not validators.url(normalized):
+            result["error"] = "Invalid URL format"
+            return result
+        result["valid"] = True
 
-    /* Action Button */
-    div.stButton > button {
-        background: linear-gradient(90deg, #1f6feb 0%, #0969da 100%) !important;
-        border-radius: 12px !important; color: white !important; width: 100%;
-        font-weight: 800 !important; letter-spacing: 1.5px !important; border: none !important;
-        padding: 15px !important; text-transform: uppercase; transition: 0.4s ease;
-    }
-    div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(31, 111, 235, 0.4); }
+        # HTTP request
+        headers = {"User-Agent": "URL-Sandbox-Analyzer/1.0 (+https://github.com/yourname)"}
+        resp = requests.get(normalized, headers=headers, timeout=timeout, allow_redirects=True, verify=True)
+        result["http"] = {
+            "status_code": resp.status_code,
+            "final_url": resp.url,
+            "elapsed_ms": int(resp.elapsed.total_seconds() * 1000),
+            "headers": dict(resp.headers),
+            "content_length": len(resp.content),
+        }
 
-    /* Professional Info Boxes */
-    .info-box {
-        background: rgba(22, 27, 34, 0.5); padding: 25px;
-        border-radius: 20px; border: 1px solid #30363d; height: 100%;
-        transition: 0.3s ease;
-    }
-    .info-box:hover { border-color: #58a6ff; background: rgba(48, 54, 61, 0.2); }
-    .threat-card {
-        background: rgba(248, 81, 73, 0.08); padding: 18px;
-        border-radius: 12px; border-left: 5px solid #f85149; margin-bottom: 10px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+        content_type = resp.headers.get("Content-Type", "")
+        result["meta"]["content_type"] = content_type
 
-# --- 3. HEADER SECTION (FIXED ATTRIBUTEERROR) ---
-c1, c2, c3 = st.columns([1, 4, 1])
+        # Parse HTML if applicable
+        if "html" in content_type.lower():
+            soup = BeautifulSoup(resp.text, "html.parser")
+            title_tag = soup.title.string.strip() if soup.title and soup.title.string else ""
+            meta_desc = ""
+            md = soup.find("meta", attrs={"name":"description"})
+            if md and md.get("content"):
+                meta_desc = md.get("content").strip()
+            # Extract links
+            parsed_root = urlparse(resp.url)
+            root_domain = tldextract.extract(parsed_root.netloc).registered_domain
+            for a in soup.find_all("a", href=True):
+                href = a.get("href").strip()
+                # normalize relative links
+                href_full = urljoin(resp.url, href)
+                parsed = urlparse(href_full)
+                if not parsed.scheme.startswith("http"):
+                    continue
+                link_domain = tldextract.extract(parsed.netloc).registered_domain
+                if link_domain == root_domain:
+                    result["links"]["internal"].append(href_full)
+                else:
+                    result["links"]["external"].append(href_full)
+            # Forms
+            for form in soup.find_all("form"):
+                f = {
+                    "action": urljoin(resp.url, form.get("action") or ""),
+                    "method": (form.get("method") or "GET").upper(),
+                    "inputs": []
+                }
+                for inp in form.find_all(["input","textarea","select"]):
+                    name = inp.get("name") or inp.get("id") or ""
+                    itype = inp.get("type") or inp.name
+                    f["inputs"].append({"name": name, "type": itype})
+                result["forms"].append(f)
 
-with c1:
-    try: st.image("NTU logo.jpg", width=120)
-    except: st.markdown("### 🏛️")
+            result["meta"]["title"] = title_tag
+            result["meta"]["description"] = meta_desc
 
-with c2:
-    st.markdown(f"""
-        <div class="hero-card">
-            <p style="color: #58a6ff; font-weight: 700; margin-bottom: 12px;">
-                <span style="font-size: 1.25rem;">C</span>ybersecurity 
-                <span style="font-size: 1.25rem;">E</span>ngineering 
-                <span style="font-size: 1.25rem;">D</span>epartment 
-                <span style="font-size: 1.25rem;">S</span>tudents 
-                <span style="color: #8b949e; font-weight: 400; margin-left: 10px;">| College of AI & Computer Engineering</span>
-            </p>
-            <h6 style="color: #8b949e; letter-spacing: 5px; font-weight: 700; margin-bottom: 5px;">NORTHERN TECHNICAL UNIVERSITY</h6>
-            <h1 style="color: #ffffff; font-size: 3.2rem; font-weight: 900; margin: 0;">AI THREAT INTELLIGENCE</h1>
-            <div style="height: 4px; background: #1f6feb; width: 70px; margin: 20px auto; border-radius: 10px;"></div>
-        </div>
-    """, unsafe_allow_html=True)
+        # SSL info
+        parsed = urlparse(normalized)
+        hostname = parsed.hostname
+        if hostname:
+            result["ssl"] = get_ssl_info(hostname)
 
-with c3:
-    try: st.image("collegue logo.jpg", width=120)
-    except: st.markdown("### 💻")
+        # WHOIS (optional)
+        if WHOIS_AVAILABLE and hostname:
+            try:
+                w = whois_lib.whois(hostname)
+                # keep only a few fields
+                result["whois"] = {
+                    "domain_name": w.domain_name,
+                    "registrar": w.registrar,
+                    "creation_date": str(w.creation_date),
+                    "expiration_date": str(w.expiration_date),
+                    "name_servers": w.name_servers
+                }
+            except Exception as e:
+                result["whois"] = {"error": str(e)}
 
-# --- 4. NEURAL LINK ANALYSIS TERMINAL ---
-st.markdown("""
-    <div class="terminal-header">
-        <i class="bi bi-cpu-fill" style="color: #58a6ff; font-size: 1.5rem;"></i>
-        <span class="terminal-title">Neural Link Analysis Terminal v2.0</span>
-    </div>
-""", unsafe_allow_html=True)
+    except requests.exceptions.RequestException as re:
+        result["error"] = f"Request error: {str(re)}"
+    except Exception as e:
+        result["error"] = f"Unexpected error: {str(e)}"
+    return result
 
-target_url = st.text_input("INPUT", label_visibility="collapsed", placeholder="SYSTEM READY: Input Target Vector (URL) for Deep Forensic Inspection...")
+# -------------------------
+# UI Layout
+# -------------------------
+st.markdown("<div style='display:flex;align-items:center;gap:16px;margin-bottom:12px'>"
+            "<div style='font-size:28px;font-weight:700'>URL SandBox Analyzer</div>"
+            "<div class='badge'>Professional</div>"
+            "</div>", unsafe_allow_html=True)
 
-col_btn, _ = st.columns([1, 2])
-with col_btn:
-    scan_triggered = st.button("▶ INITIALIZE NEURAL SCAN")
+with st.sidebar:
+    st.markdown("## Controls")
+    url_input = st.text_input("Enter URL to analyze", placeholder="https://example.com")
+    timeout = st.slider("Request timeout (seconds)", min_value=5, max_value=30, value=12)
+    enable_whois = st.checkbox("Enable WHOIS lookup (optional)", value=False)
+    if enable_whois and not WHOIS_AVAILABLE:
+        st.info("WHOIS library not installed. Install `python-whois` to enable this feature.")
+    st.markdown("---")
+    st.markdown("**Output options**")
+    pretty_json = st.checkbox("Show pretty JSON report", value=True)
+    st.markdown("---")
+    st.markdown("Built by a professional template — clean, secure, and audit-friendly.")
 
-if scan_triggered:
-    if target_url:
-        score, flags = deep_forensic_analysis(target_url)
-        st.divider()
-        
-        r1, r2 = st.columns([1, 1.5])
-        with r1:
-            color = "#238636" if score > 75 else "#d29922" if score > 45 else "#f85149"
-            fig = go.Figure(go.Indicator(
-                mode="gauge+number", value=score,
-                number={'suffix': "%", 'font': {'color': color, 'size': 70}},
-                gauge={'bar': {'color': color}, 'bgcolor': "#010409", 'axis': {'range': [0, 100], 'visible': False}}
-            ))
-            fig.update_layout(height=320, paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, margin=dict(t=0,b=0))
-            st.plotly_chart(fig, use_container_width=True)
-            
-        with r2:
-            st.markdown("### 📊 Forensic Intelligence Manifest")
-            if score < 45: st.error("🛑 STATUS: CRITICAL THREAT IDENTIFIED")
-            elif score < 75: st.warning("⚠️ STATUS: ELEVATED ANOMALIES DETECTED")
-            else: st.success("✅ STATUS: INTEGRITY VERIFIED")
+col1, col2 = st.columns([2, 1])
 
-            for sev, msg in flags:
-                st.markdown(f"<div class='threat-card'><strong>[{sev}]</strong> {msg}</div>", unsafe_allow_html=True)
-            if not flags:
-                st.info("System integrity check complete. No known heuristic anomalies detected.")
+with col1:
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.subheader("Analyze")
+    if st.button("Run Analysis", key="run"):
+        if not url_input:
+            st.warning("Please enter a URL to analyze.")
+        else:
+            with st.spinner("Analyzing URL..."):
+                analysis = analyze_url(url_input, timeout=timeout)
+            st.success("Analysis complete")
+            st.session_state["last_analysis"] = analysis
+    else:
+        analysis = st.session_state.get("last_analysis", None)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 5. SYSTEM INFO FOOTER ---
-st.write("<br>", unsafe_allow_html=True)
-s1, s2 = st.columns(2)
+with col2:
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.subheader("Quick Info")
+    if "last_analysis" in st.session_state:
+        la = st.session_state["last_analysis"]
+        st.markdown(f"<div class='kv'><div><strong>URL</strong><div class='small'>{la.get('normalized') or la.get('url')}</div></div>"
+                    f"<div><span class='badge'>{'Valid' if la.get('valid') else 'Invalid'}</span></div></div>", unsafe_allow_html=True)
+        http = la.get("http", {})
+        st.markdown(f"<div class='kv'><div><strong>Status</strong><div class='small'>{http.get('status_code')}</div></div>"
+                    f"<div><strong>Time</strong><div class='small'>{http.get('elapsed_ms')} ms</div></div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='kv'><div><strong>Content Type</strong><div class='small'>{la.get('meta',{}).get('content_type')}</div></div>"
+                    f"<div><strong>Links</strong><div class='small'>Internal: {len(la.get('links',{}).get('internal',[]))} • External: {len(la.get('links',{}).get('external',[]))}</div></div></div>", unsafe_allow_html=True)
+    else:
+        st.markdown("No analysis run yet. Enter a URL and click Run Analysis.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-with s1:
-    st.markdown("""
-        <div class="info-box">
-            <div style="display:flex; align-items:center; gap:12px; color:#58a6ff; margin-bottom:15px;">
-                <i class="bi bi-shield-lock-fill" style="font-size:1.5rem;"></i>
-                <span style="font-weight:700; text-transform:uppercase;">Technical Support</span>
-            </div>
-            <p style="color:#8b949e; font-size:0.9rem;">Direct SOC administration and regional node support.</p>
-            <strong>Telegram ID:</strong> <a href="https://t.me/shim_azu64" style="color:#58a6ff; text-decoration:none;">@shim_azu64</a><br>
-            <strong>System ID:</strong> <code style="color:#79c0ff;">NTU-AI-64-STABLE</code><br>
-            <strong>Status:</strong> <span style="color:#3fb950;">● Operational</span>
-        </div>
-    """, unsafe_allow_html=True)
+st.markdown("---")
 
-with s2:
-    st.markdown("""
-        <div class="info-box">
-            <div style="display:flex; align-items:center; gap:12px; color:#58a6ff; margin-bottom:15px;">
-                <i class="bi bi-geo-alt-fill" style="font-size:1.5rem;"></i>
-                <span style="font-weight:700; text-transform:uppercase;">Deployment Details</span>
-            </div>
-            <p style="color:#8b949e; font-size:0.9rem;">Regional edge computing node and database synchronicity.</p>
-            <strong>Node Location:</strong> <span style="color:#d29922;">Kirkuk, Iraq</span><br>
-            <strong>Database Sync:</strong> <span style="color:#8b949e;">Feb 2026</span><br>
-            <strong>Network:</strong> <span style="color:#8b949e;">NTU-Private-Cloud</span>
-        </div>
-    """, unsafe_allow_html=True)
+# -------------------------
+# Detailed results
+# -------------------------
+if "last_analysis" in st.session_state:
+    la = st.session_state["last_analysis"]
 
-st.markdown("<br><center style='color: #484f58; font-size: 11px; letter-spacing: 2px;'>NORTHERN TECHNICAL UNIVERSITY | CYBERSECURITY ENGINEERING DEPARTMENT STUDENTS</center>", unsafe_allow_html=True)
+    st.header("Detailed Report")
+    # Left column: HTTP + meta
+    a, b = st.columns([2, 1])
+    with a:
+        st.subheader("HTTP Summary")
+        http = la.get("http", {})
+        if la.get("error"):
+            st.error(f"Analysis error: {la.get('error')}")
+        st.write({
+            "Final URL": http.get("final_url"),
+            "Status code": http.get("status_code"),
+            "Response time (ms)": http.get("elapsed_ms"),
+            "Content length (bytes)": http.get("content_length"),
+        })
+        st.markdown("**Headers**")
+        headers = http.get("headers") or {}
+        st.table({k: headers[k] for k in list(headers)[:12]})  # show first 12 headers
+
+        st.markdown("**Page Metadata**")
+        st.write({
+            "Title": la.get("meta", {}).get("title"),
+            "Description": la.get("meta", {}).get("description"),
+            "Content Type": la.get("meta", {}).get("content_type"),
+        })
+
+        st.markdown("**Forms Detected**")
+        if la.get("forms"):
+            for idx, f in enumerate(la.get("forms")):
+                st.markdown(f"**Form {idx+1}** — Method: `{f.get('method')}` • Action: `{f.get('action')}`")
+                st.table(f.get("inputs") or [])
+        else:
+            st.info("No forms detected or page not HTML.")
+
+    with b:
+        st.subheader("Security & Domain")
+        st.markdown("**SSL Certificate**")
+        ssl_info = la.get("ssl") or {}
+        if ssl_info.get("error"):
+            st.warning(f"SSL lookup failed: {ssl_info.get('error')}")
+        else:
+            st.write({
+                "Subject CN": ssl_info.get("subject_common_name"),
+                "Issuer": ssl_info.get("issuer_common_name"),
+                "Valid from": ssl_info.get("not_before"),
+                "Valid until": ssl_info.get("not_after"),
+            })
+
+        st.markdown("**WHOIS**")
+        if la.get("whois"):
+            st.json(la.get("whois"))
+        else:
+            if enable_whois and WHOIS_AVAILABLE:
+                st.info("WHOIS lookup returned no data.")
+            else:
+                st.info("WHOIS not enabled or not available.")
+
+    st.markdown("---")
+    st.subheader("Links")
+    internal = la.get("links", {}).get("internal", [])[:200]
+    external = la.get("links", {}).get("external", [])[:200]
+    st.markdown(f"**Internal links** ({len(la.get('links',{}).get('internal',[]))})")
+    if internal:
+        for u in internal[:50]:
+            st.write(f"- {u}")
+    else:
+        st.write("No internal links found or not HTML content.")
+
+    st.markdown(f"**External links** ({len(la.get('links',{}).get('external',[]))})")
+    if external:
+        for u in external[:50]:
+            st.write(f"- {u}")
+    else:
+        st.write("No external links found or not HTML content.")
+
+    st.markdown("---")
+    st.subheader("Export")
+    report_json = json.dumps(la, indent=2)
+    if pretty_json:
+        st.code(report_json, language="json")
+    st.download_button("Download JSON report", data=report_json, file_name="url_sandbox_report.json", mime="application/json")
+
+else:
+    st.info("Run an analysis to see results here.")
+
+# -------------------------
+# Footer
+# -------------------------
+st.mark
