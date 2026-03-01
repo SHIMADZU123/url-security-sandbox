@@ -1,137 +1,89 @@
 import streamlit as st
 import requests
-import whois
-import tldextract
-import validators
-from bs4 import BeautifulSoup
-from datetime import datetime
+import base64
+import time
 import pandas as pd
+from tldextract import extract
 
-# --- CONFIG & STYLING ---
-st.set_page_config(page_title="SafeCheck Pro | URL Sandbox", page_icon="🛡️", layout="wide")
+# --- CONFIG & THEME ---
+st.set_page_config(page_title="Vortex Sentinel V3", page_icon="⚡", layout="wide")
 
-# Custom CSS for a professional look
+# Professional Dark Glassmorphism CSS
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { background-color: white; padding: 15px; border-radius: 10px; border: 1px solid #ddd; }
-    .trust-high { color: #28a745; font-weight: bold; }
-    .trust-low { color: #dc3545; font-weight: bold; }
+    .stApp { background: #0b0e14; color: #e0e0e0; }
+    .status-card { padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #30363d; }
+    .threat-detected { background: rgba(255, 75, 75, 0.1); border: 1px solid #ff4b4b; color: #ff4b4b; }
+    .threat-clean { background: rgba(0, 200, 83, 0.1); border: 1px solid #00c853; color: #00c853; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- WELL-KNOWN COMPANY DATABASE ---
-# In a real app, this would be a larger JSON or DB
-WELL_KNOWN_BRANDS = {
-    "google.com": {"name": "Google LLC", "industry": "Technology"},
-    "microsoft.com": {"name": "Microsoft Corp", "industry": "Software"},
-    "amazon.com": {"name": "Amazon.com Inc.", "industry": "E-commerce"},
-    "apple.com": {"name": "Apple Inc.", "industry": "Hardware/Tech"},
-    "github.com": {"name": "GitHub (Microsoft)", "industry": "Development"},
-    "netflix.com": {"name": "Netflix Inc.", "industry": "Entertainment"}
-}
-
-# --- LOGIC FUNCTIONS ---
-def analyze_url(url):
-    results = {"url": url, "score": 100, "flags": [], "brand": None}
+# --- VIRUSTOTAL LOGIC ---
+def get_vt_report(url, api_key):
+    # VT requires URL to be base64 encoded (unpadded) for lookup
+    url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
+    api_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
+    headers = {"x-apikey": api_key, "accept": "application/json"}
     
-    # 1. Basic Validation
-    if not validators.url(url):
-        return None
-
-    ext = tldextract.extract(url)
-    domain = f"{ext.domain}.{ext.suffix}"
-    
-    # 2. Brand Check
-    if domain in WELL_KNOWN_BRANDS:
-        results["brand"] = WELL_KNOWN_BRANDS[domain]
-        results["score"] = 100 # Verified brands get top score
-    else:
-        # Check for "typosquatting" (e.g., g00gle.com)
-        for brand in WELL_KNOWN_BRANDS:
-            if brand in domain and domain != brand:
-                results["flags"].append(f"Potential Phishing: Domain resembles {brand}")
-                results["score"] -= 40
-
-    # 3. Security Headers & SSL
-    try:
-        response = requests.get(url, timeout=5, headers={"User-Agent": "Mozilla/5.0"})
-        if not url.startswith("https"):
-            results["flags"].append("No HTTPS Encryption")
-            results["score"] -= 20
-        
-        headers = response.headers
-        if 'Content-Security-Policy' not in headers:
-            results["flags"].append("Missing Content-Security-Policy (CSP)")
-            results["score"] -= 5
-            
-    except Exception as e:
-        results["flags"].append(f"Connection Error: {str(e)}")
-        results["score"] = 0
-
-    return results, domain
+    response = requests.get(api_url, headers=headers)
+    return response.json() if response.status_code == 200 else None
 
 # --- UI LAYOUT ---
-st.title("🛡️ SafeCheck Pro: URL Sandbox")
-st.caption("Professional Security Analysis & Brand Verification")
+st.sidebar.title("🛠️ Control Center")
+vt_key = st.sidebar.text_input("Enter VirusTotal API Key", type="password", help="Get yours at virustotal.com")
+st.sidebar.divider()
+st.sidebar.caption("Scan Mode: Heuristic + Global Threat Intelligence")
 
-url_input = st.text_input("Enter URL to analyze:", placeholder="https://example.com")
+st.title("⚡ Vortex Sentinel | Cyber Sandbox")
+st.markdown("##### Real-time URL threat intelligence & brand validation")
 
-if st.button("Run Security Sandbox"):
-    if url_input:
-        with st.spinner("Analyzing domain reputation and headers..."):
-            data, domain = analyze_url(url_input)
-            
-            if data:
-                # Top Metrics
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    color = "trust-high" if data['score'] > 70 else "trust-low"
-                    st.markdown(f"### Trust Score: <span class='{color}'>{data['score']}/100</span>", unsafe_allow_html=True)
-                
-                with col2:
-                    status = "✅ Verified Brand" if data['brand'] else "🌐 Public Domain"
-                    st.metric("Identity Status", status)
-                
-                with col3:
-                    st.metric("Domain", domain)
+target_url = st.text_input("Target URL:", placeholder="https://suspicious-site.com/login")
 
-                st.divider()
+if st.button("RUN DEEP SCAN") and target_url:
+    if not vt_key:
+        st.warning("Please enter a VirusTotal API Key in the sidebar for full power.")
+    
+    with st.status("Initializing Neural Analysis...", expanded=True) as status:
+        # Step 1: Local Heuristics
+        st.write("🔍 Running local heuristic checks...")
+        ext = extract(target_url)
+        is_suspicious_tld = ext.suffix in ['xyz', 'top', 'zip', 'gq']
+        
+        # Step 2: API Intelligence
+        st.write("🌐 Querying VirusTotal Global Database...")
+        report = get_vt_report(target_url, vt_key) if vt_key else None
+        
+        time.sleep(1)
+        status.update(label="Scanning Complete", state="complete")
 
-                # Detailed Analysis
-                left_tab, right_tab = st.columns(2)
+    # --- RESULT DASHBOARD ---
+    if report and "data" in report:
+        stats = report["data"]["attributes"]["last_analysis_stats"]
+        malicious_count = stats["malicious"]
+        
+        # Threat Banner
+        if malicious_count > 0:
+            st.markdown(f'<div class="status-card threat-detected"><h3>🚨 THREAT DETECTED: {malicious_count} Engines Flagged This URL</h3></div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="status-card threat-clean"><h3>✅ CLEAN: No known threats detected</h3></div>', unsafe_allow_html=True)
 
-                with left_tab:
-                    st.subheader("Brand & Ownership")
-                    if data['brand']:
-                        st.success(f"**Entity:** {data['brand']['name']}")
-                        st.info(f"**Industry:** {data['brand']['industry']}")
-                    else:
-                        st.warning("No official corporate brand matched. Exercise caution if this site asks for credentials.")
-                    
-                    # Mock WHOIS (In a real app, use the 'whois' library)
-                    st.write("**Whois Data Snippet:**")
-                    st.code(f"Registrar: Unknown\nRegistered: Recently\nCountry: Protected", language="yaml")
+        # Metrics
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Malicious", stats['malicious'], delta_color="inverse")
+        c2.metric("Suspicious", stats['suspicious'])
+        c3.metric("Harmless", stats['harmless'])
+        c4.metric("Engine Total", sum(stats.values()))
 
-                with right_tab:
-                    st.subheader("Security Flags")
-                    if not data['flags']:
-                        st.success("No critical security issues found.")
-                    else:
-                        for flag in data['flags']:
-                            st.error(f"🚩 {flag}")
+        # Detailed Engine Data
+        with st.expander("👁️ View Individual Engine Results"):
+            results = report["data"]["attributes"]["last_analysis_results"]
+            df_results = pd.DataFrame([
+                {"Engine": k, "Category": v["category"], "Result": v["result"]} 
+                for k, v in results.items()
+            ])
+            st.table(df_results.sort_values(by="Category"))
 
-                # Image Sandbox Visualization
-                st.info("💡 **Sandbox Insight:** Professional companies usually have high 'Security Header' scores and 10+ year domain history.")
-            else:
-                st.error("Invalid URL format. Please include http:// or https://")
-
-# --- SIDEBAR ---
-with st.sidebar:
-    st.header("Settings")
-    st.write("Scan Depth: **High**")
-    st.checkbox("Check for Typosquatting", value=True)
-    st.checkbox("Analyze SSL Certificate", value=True)
-    st.divider()
-    st.write("Version: 1.0.2-Stable")
+    else:
+        st.info("Analysis finished with local heuristics. Connect API for deep scan results.")
+        if is_suspicious_tld:
+            st.error(f"🚩 High Risk TLD detected: .{ext.suffix} is often used in malware.")
