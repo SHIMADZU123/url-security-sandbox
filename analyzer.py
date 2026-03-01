@@ -1,89 +1,108 @@
 import streamlit as st
 import requests
 import base64
-import time
-import pandas as pd
+import plotly.graph_objects as go
+from bs4 import BeautifulSoup
 from tldextract import extract
-api_key = st.secrets["VT_API_KEY"]
-# --- CONFIG & THEME ---
-st.set_page_config(page_title="Vortex Sentinel V3", page_icon="⚡", layout="wide")
 
-# Professional Dark Glassmorphism CSS
+# --- PAGE SETUP ---
+st.set_page_config(page_title="Vortex Sentinel Pro", layout="wide")
+
+# --- CSS FOR COMPACT UI ---
 st.markdown("""
     <style>
-    .stApp { background: #0b0e14; color: #e0e0e0; }
-    .status-card { padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #30363d; }
-    .threat-detected { background: rgba(255, 75, 75, 0.1); border: 1px solid #ff4b4b; color: #ff4b4b; }
-    .threat-clean { background: rgba(0, 200, 83, 0.1); border: 1px solid #00c853; color: #00c853; }
+    .preview-box { background-color: #161b22; padding: 20px; border-radius: 10px; border: 1px solid #30363d; }
+    .brand-text { color: #58a6ff; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- VIRUSTOTAL LOGIC ---
-def get_vt_report(url, api_key):
-    # VT requires URL to be base64 encoded (unpadded) for lookup
-    url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
-    api_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
-    headers = {"x-apikey": api_key, "accept": "application/json"}
+# Secure API Key Fetch
+try:
+    VT_API_KEY = st.secrets["VT_API_KEY"]
+except:
+    st.error("🔑 API Key Missing! Add 'VT_API_KEY' to your Streamlit Secrets.")
+    st.stop()
+
+# --- FUNCTION: SAFE PREVIEW (SCRAPER) ---
+def get_site_preview(url):
+    try:
+        # We use a generic User-Agent to avoid being blocked, but we don't execute JS
+        response = requests.get(url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'})
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        title = soup.title.string if soup.title else "No Title Found"
+        meta_desc = soup.find("meta", attrs={"name": "description"})
+        desc = meta_desc["content"] if meta_desc else "No description available."
+        
+        return {"title": title, "desc": desc, "status": "Success"}
+    except Exception as e:
+        return {"status": "Error", "message": str(e)}
+
+# --- FUNCTION: RISK GAUGE ---
+def draw_risk_meter(score):
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = score,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        gauge = {
+            'axis': {'range': [0, 100]},
+            'bar': {'color': "#21262d"},
+            'steps': [
+                {'range': [0, 20], 'color': "#238636"},
+                {'range': [20, 50], 'color': "#d29922"},
+                {'range': [50, 100], 'color': "#da3633"}
+            ],
+            'threshold': {'line': {'color': "white", 'width': 4}, 'value': score}
+        }
+    ))
+    fig.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"})
+    return fig
+
+# --- MAIN APP ---
+st.title("🛡️ Vortex Sentinel | Pro Sandbox")
+url_input = st.text_input("Analyze URL:", placeholder="https://example.com")
+
+if st.button("🔍 START DEEP ANALYSIS") and url_input:
+    # 1. VIRUSTOTAL SCAN
+    url_id = base64.urlsafe_b64encode(url_input.encode()).decode().strip("=")
+    vt_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
     
-    response = requests.get(api_url, headers=headers)
-    return response.json() if response.status_code == 200 else None
-
-# --- UI LAYOUT ---
-st.sidebar.title("🛠️ Control Center")
-vt_key = st.sidebar.text_input("Enter VirusTotal API Key", type="password", help="Get yours at virustotal.com")
-st.sidebar.divider()
-st.sidebar.caption("Scan Mode: Heuristic + Global Threat Intelligence")
-
-st.title("⚡ Vortex Sentinel | Cyber Sandbox")
-st.markdown("##### Real-time URL threat intelligence & brand validation")
-
-target_url = st.text_input("Target URL:", placeholder="https://suspicious-site.com/login")
-
-if st.button("RUN DEEP SCAN") and target_url:
-    if not vt_key:
-        st.warning("Please enter a VirusTotal API Key in the sidebar for full power.")
-    
-    with st.status("Initializing Neural Analysis...", expanded=True) as status:
-        # Step 1: Local Heuristics
-        st.write("🔍 Running local heuristic checks...")
-        ext = extract(target_url)
-        is_suspicious_tld = ext.suffix in ['xyz', 'top', 'zip', 'gq']
+    with st.spinner("Analyzing Threat Intelligence..."):
+        vt_res = requests.get(vt_url, headers={"x-apikey": VT_API_KEY})
         
-        # Step 2: API Intelligence
-        st.write("🌐 Querying VirusTotal Global Database...")
-        report = get_vt_report(target_url, vt_key) if vt_key else None
-        
-        time.sleep(1)
-        status.update(label="Scanning Complete", state="complete")
+        if vt_res.status_code == 200:
+            data = vt_res.json()['data']['attributes']
+            stats = data['last_analysis_stats']
+            risk_score = (stats['malicious'] / sum(stats.values())) * 100 if sum(stats.values()) > 0 else 0
+            
+            # --- LAYOUT: 3 COLUMNS ---
+            col1, col2, col3 = st.columns([1, 1, 1])
+            
+            with col1:
+                st.plotly_chart(draw_risk_meter(risk_score), use_container_width=True)
+            
+            with col2:
+                st.subheader("Security Stats")
+                st.write(f"🛑 Malicious: **{stats['malicious']}**")
+                st.write(f"⚠️ Suspicious: **{stats['suspicious']}**")
+                st.write(f"✅ Harmless: **{stats['harmless']}**")
+                st.divider()
+                st.caption(f"Domain: {extract(url_input).registered_domain}")
 
-    # --- RESULT DASHBOARD ---
-    if report and "data" in report:
-        stats = report["data"]["attributes"]["last_analysis_stats"]
-        malicious_count = stats["malicious"]
-        
-        # Threat Banner
-        if malicious_count > 0:
-            st.markdown(f'<div class="status-card threat-detected"><h3>🚨 THREAT DETECTED: {malicious_count} Engines Flagged This URL</h3></div>', unsafe_allow_html=True)
+            with col3:
+                st.subheader("🕵️ Safe Preview")
+                preview = get_site_preview(url_input)
+                if preview["status"] == "Success":
+                    st.markdown(f"""
+                    <div class="preview-box">
+                        <p class="brand-text">Site Title:</p>
+                        <p>{preview['title']}</p>
+                        <p class="brand-text">Meta Description:</p>
+                        <p style="font-size: 0.8em;">{preview['desc']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.error("Could not fetch preview. Site may be offline or blocking scrapers.")
+
         else:
-            st.markdown(f'<div class="status-card threat-clean"><h3>✅ CLEAN: No known threats detected</h3></div>', unsafe_allow_html=True)
-
-        # Metrics
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Malicious", stats['malicious'], delta_color="inverse")
-        c2.metric("Suspicious", stats['suspicious'])
-        c3.metric("Harmless", stats['harmless'])
-        c4.metric("Engine Total", sum(stats.values()))
-
-        # Detailed Engine Data
-        with st.expander("👁️ View Individual Engine Results"):
-            results = report["data"]["attributes"]["last_analysis_results"]
-            df_results = pd.DataFrame([
-                {"Engine": k, "Category": v["category"], "Result": v["result"]} 
-                for k, v in results.items()
-            ])
-            st.table(df_results.sort_values(by="Category"))
-
-    else:
-        st.info("Analysis finished with local heuristics. Connect API for deep scan results.")
-        if is_suspicious_tld:
-            st.error(f"🚩 High Risk TLD detected: .{ext.suffix} is often used in malware.")
+            st.error("Error connecting to VirusTotal. Check your API key or URL format.")
