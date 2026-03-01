@@ -5,3 +5,4 @@ validators
 tldextract
 python-whois
 plotly
+fpdf2
