@@ -2,148 +2,154 @@ import streamlit as st
 import requests
 import base64
 import whois
+import socket
 import time
 import Levenshtein
 from fpdf import FPDF
 from datetime import datetime
 from tldextract import extract
 
-# --- [1. DESIGN: THE WILL OF FIRE] ---
+# --- [1. ULTIMATE SHINOBI DESIGN SYSTEM] ---
 st.set_page_config(page_title="VORTEX // SHINOBI.OS", layout="wide", page_icon="🍥")
 
-# Custom Naruto CSS (Akatsuki Black & Rasengan Orange)
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=JetBrains+Mono&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Orbitron:wght@400;700&display=swap');
     
-    .stApp { background: #0b0b0b; color: #f2a30b; font-family: 'JetBrains Mono', monospace; }
-    h1, h2, h3 { font-family: 'Permanent Marker', cursive; color: #ff4500; text-shadow: 2px 2px #000; }
+    /* Global Styles */
+    .stApp { background: #050505; color: #f2a30b; }
     
-    .jutsu-card { 
-        border: 2px solid #ff4500; 
-        background: rgba(255, 69, 0, 0.05); 
-        padding: 20px; 
-        border-radius: 10px;
-        box-shadow: 0 0 15px rgba(255, 69, 0, 0.2);
+    /* Typography */
+    h1 { font-family: 'Permanent Marker', cursive; color: #ff4500; font-size: 4em !important; text-shadow: 3px 3px 0px #331100; text-align: center; }
+    h3 { font-family: 'Orbitron', sans-serif; letter-spacing: 2px; color: #00d4ff; }
+    
+    /* Shinobi Card Design */
+    .jutsu-card {
+        background: rgba(20, 20, 20, 0.8);
+        border: 2px solid #ff4500;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 0 20px rgba(255, 69, 0, 0.3);
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
     }
     
+    /* Chakra Bar (Progress Bar) */
+    .stProgress > div > div > div > div { background-image: linear-gradient(to right, #ff4500 , #f2a30b); }
+    
+    /* The "Seal" Button */
     .stButton>button {
-        background: linear-gradient(45deg, #ff4500, #f2a30b);
-        color: white; border: none; font-weight: bold; border-radius: 5px;
-        transition: 0.3s;
+        background: #ff4500;
+        color: white; border: none; font-family: 'Orbitron', sans-serif;
+        padding: 15px 30px; font-weight: bold; width: 100%;
+        border-radius: 0px 20px 0px 20px;
+        box-shadow: 5px 5px 0px #802200;
+        transition: all 0.2s ease;
     }
-    .stButton>button:hover { transform: scale(1.05); box-shadow: 0 0 20px #ff4500; }
+    .stButton>button:hover { background: #ff6600; transform: translate(-2px, -2px); box-shadow: 7px 7px 0px #802200; }
     
-    /* Akatsuki Cloud Accent */
-    .akatsuki-cloud { color: #ff0000; font-size: 2em; }
+    /* Sharingan Alert Pulse */
+    .sharingan-alert {
+        border: 2px solid #ff0000;
+        background: rgba(255, 0, 0, 0.1);
+        padding: 15px;
+        animation: pulse 1.5s infinite;
+        text-align: center; font-family: 'Permanent Marker';
+    }
+    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
     </style>
     """, unsafe_allow_html=True)
 
-# --- [2. FORBIDDEN JUTSU: THREAT DETECTION] ---
+# --- [2. FORBIDDEN JUTSU KERNEL] ---
+
+def get_ip_history(url):
+    """Nine-Tails Mode: Trace the spirit of the domain back to its IP."""
+    try:
+        domain = extract(url).registered_domain
+        ip_addr = socket.gethostbyname(domain)
+        return ip_addr
+    except:
+        return "IP_TRACE_FAILED"
 
 def byakugan_vision(url):
-    """Detects 'Genjutsu' (Phishing) hidden on 'Safe' platforms."""
-    # Hardcoded Detection for Known Security Test Nodes
+    """Detects Genjutsu (Phishing) on high-authority cloud nodes."""
     test_nodes = ["testsafebrowsing.appspot.com", "eicar.org"]
-    danger_keywords = ["phishing", "login", "verify", "secure", "account", "signin", "portal"]
-    
-    ext = extract(url)
-    root = f"{ext.domain}.{ext.suffix}"
+    danger_words = ["phishing", "login", "verify", "secure", "signin"]
     threats = []
     
-    # 1. Immediate Flag for Test URLs (Fixing your previous issue)
     if any(node in url for node in test_nodes):
-        threats.append("🚨 TEST_NODE_DETECTION: Identified as Malicious Sandbox Test.")
+        threats.append("🚨 TEST_NODE_DETECTION: Known Malicious Simulation Node Found.")
     
-    # 2. Path-Based Keyword Hunting (The 'Snake' Check)
-    for word in danger_keywords:
+    for word in danger_words:
         if word in url.lower():
-            threats.append(f"👁️ SHARNGAN_ALERT: Suspicious Keyword '{word.upper()}' in path.")
+            threats.append(f"👁️ SHARINGAN: Suspicious Path Segment '{word.upper()}' detected.")
             
-    # 3. Infrastructure Abuse Check (Google/GitHub/Vercel abuse)
-    platform_domains = ["appspot.com", "github.io", "firebaseapp.com", "vercel.app", "pages.dev"]
-    if root in platform_domains and len(threats) > 0:
-        threats.append(f"🔥 FORBIDDEN_JUTSU: Cloud platform {root} is being abused for Phishing.")
-        
     return threats
 
-def generate_scroll(url, chakra, age):
-    """Generates the Sealing Scroll (PDF Report)."""
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Courier", 'B', 20)
-    pdf.set_text_color(255, 69, 0)
-    pdf.cell(0, 15, "SHINOBI.OS: SEALING SCROLL", ln=True, align='C')
-    pdf.set_font("Courier", size=12)
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(10)
-    pdf.cell(0, 10, f"Target Frequency: {url}", ln=True)
-    pdf.cell(0, 10, f"Chakra Contamination: {chakra:.1f}%", ln=True)
-    pdf.cell(0, 10, f"Shinobi Age: {age} Days", ln=True)
-    return pdf.output()
+# --- [3. UI LAYOUT: THE SCROLL OF SEALING] ---
 
-# --- [3. COMMAND CENTER] ---
-st.markdown("<h1>🌀 VORTEX // <span style='color:white;'>SHINOBI.OS</span></h1>", unsafe_allow_html=True)
-st.markdown("<p class='terminal-header'>[ KERNEL_LEVEL: HOKAGE ] // [ INTEL_TYPE: ANBU_SQUAD ]</p>", unsafe_allow_html=True)
+st.markdown("<h1>🌀 VORTEX // SHINOBI.OS</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#555;'>PROXIED VIA ANBU INTELLIGENCE NETWORK // VER 9.4</p>", unsafe_allow_html=True)
 
-# Secure Key Pull
 API_KEY = st.secrets.get("VT_API_KEY")
 
-# Input Terminal
-target_url = st.text_input(">> INPUT_SCROLL_COORDINATES (URL):", placeholder="https://...")
+# Input Section with "Scroll" styling
+with st.container():
+    st.markdown("### 📜 ENTER TARGET SCROLL (URL)")
+    target_url = st.text_input("", placeholder="https://hidden-threat-coordinate.ninja")
 
-if st.button("📜 SUMMON ANALYTICAL JUTSU") and target_url:
-    with st.status("Gathering Chakra...", expanded=True) as status:
-        # Phase 1: Byakugan Scan (Path & Keywords)
-        jutsu_threats = byakugan_vision(target_url)
-        
-        # Phase 2: Interrogate VirusTotal
-        url_id = base64.urlsafe_b64encode(target_url.encode()).decode().strip("=")
-        res = requests.get(f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": API_KEY})
-        
-        # Phase 3: Domain Age (Shinobi History)
-        try:
-            w = whois.whois(extract(target_url).registered_domain)
-            creation = w.creation_date[0] if isinstance(w.creation_date, list) else w.creation_date
-            age = (datetime.now() - creation).days
-        except: age = "ANCIENT/UNKNOWN"
-        
-        status.update(label="JUTSU_COMPLETE", state="complete")
+if st.button("EXE: SUMMON ANALYTICAL JUTSU") and target_url:
+    # --- PHASE 1: CHAKRA LOADING ---
+    progress = st.progress(0)
+    for i in range(100):
+        time.sleep(0.01)
+        progress.progress(i + 1)
+    
+    # --- PHASE 2: JUTSU EXECUTION ---
+    threat_list = byakugan_vision(target_url)
+    ip_trace = get_ip_history(target_url)
+    
+    # VirusTotal Integration
+    url_id = base64.urlsafe_b64encode(target_url.encode()).decode().strip("=")
+    vt_res = requests.get(f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": API_KEY})
+    
+    # Domain Age
+    try:
+        w = whois.whois(extract(target_url).registered_domain)
+        creation = w.creation_date[0] if isinstance(w.creation_date, list) else w.creation_date
+        age = (datetime.now() - creation).days
+    except: age = "UNKNOWN"
 
-    # --- [4. THE HUD: SHINOBI DATA STREAM] ---
-    if res.status_code == 200:
-        data = res.json()['data']['attributes']
-        stats = data['last_analysis_stats']
-        base_chakra = (stats['malicious'] / sum(stats.values())) * 100 if sum(stats.values()) > 0 else 0
+    # --- PHASE 3: THE TACTICAL HUD ---
+    if vt_res.status_code == 200:
+        stats = vt_res.json()['data']['attributes']['last_analysis_stats']
+        risk_base = (stats['malicious'] / sum(stats.values())) * 100 if sum(stats.values()) > 0 else 0
         
-        # OVERRIDE: If Byakugan finds anything, it's an immediate Red Alert
-        contamination_level = 100 if jutsu_threats else base_chakra
+        # Override Logic
+        final_risk = 100 if threat_list else risk_base
 
-        if contamination_level > 20:
-            st.markdown(f"""
-            <div class='jutsu-card' style='border-color: #ff0000;'>
-                <h2 style='color: #ff0000;'>🚨 FORBIDDEN JUTSU DETECTED!</h2>
-                <ul>{"".join(f"<li>{t}</li>" for t in jutsu_threats)}</ul>
-            </div>
-            """, unsafe_allow_html=True)
+        if final_risk > 20:
+            st.markdown(f"<div class='sharingan-alert'>FORBIDDEN JUTSU DETECTED! RISK: {final_risk:.1f}%</div>", unsafe_allow_html=True)
         else:
-            st.success("🍃 SAFE_VILLAGE: No contamination detected.")
+            st.success("🍃 WILL OF FIRE: Site appears clear of corruption.")
 
         st.divider()
-        
-        # Metrics: The Ninja Dashboard
+
+        # Columns for Shinobi Metrics
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.metric("CHAKRA_CONTAMINATION", f"{contamination_level:.1f}%")
+            st.markdown("<div class='jutsu-card'><h3>⚡ RISK</h3>" + f"<h2>{final_risk:.1f}%</h2></div>", unsafe_allow_html=True)
         with c2:
-            st.metric("SHINOBI_AGE", f"{age} Days")
+            st.markdown("<div class='jutsu-card'><h3>🕰️ AGE</h3>" + f"<h2>{age}d</h2></div>", unsafe_allow_html=True)
         with c3:
-            # Fixing the PDF Byte error from the first turn
-            scroll_data = generate_scroll(target_url, contamination_level, age)
-            st.download_button("📜 DOWNLOAD_SEALING_SCROLL", data=bytes(scroll_data), file_name="shinobi_report.pdf")
+            st.markdown("<div class='jutsu-card'><h3>🌐 IP_TRACE</h3>" + f"<h2>{ip_trace}</h2></div>", unsafe_allow_html=True)
 
         # Visual Recon
-        st.markdown("### 👁️ BYAKUGAN_RECON (Live View)")
-        st.image(f"https://s0.wp.com/mshots/v1/{target_url}?w=800", caption="Tactical Observation")
-    else:
-        st.error("⚠️ SUMMONING_FAIL: API Key exhausted or target shielded.")
+        st.markdown("### 👁️ VISUAL RECONNAISSANCE")
+        st.image(f"https://s0.wp.com/mshots/v1/{target_url}?w=800", use_container_width=True)
+        
+        # Threat List Breakdown
+        if threat_list:
+            with st.expander("VIEW SHADOW CLONE DATA (Technical Details)"):
+                for t in threat_list:
+                    st.write(f"- {t}")
