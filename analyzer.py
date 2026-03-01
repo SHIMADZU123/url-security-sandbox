@@ -4,7 +4,7 @@ import base64
 import time
 import pandas as pd
 from tldextract import extract
-
+api_key = st.secrets["VT_API_KEY"]
 # --- CONFIG & THEME ---
 st.set_page_config(page_title="Vortex Sentinel V3", page_icon="⚡", layout="wide")
 
