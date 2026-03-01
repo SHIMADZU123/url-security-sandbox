@@ -4,5 +4,4 @@ beautifulsoup4
 validators
 tldextract
 python-whois
-beautifulsoup4
 plotly
